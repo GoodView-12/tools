@@ -1,0 +1,1811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>战力雷达面板</title>
+    <style>
+        :root {
+            --bg-color: #0b0e1a;
+            --panel-bg: #121828;
+            --title-bg: #1e2a44;
+            --text-main: #e0ecff;
+            --text-sub: #8f9bb5;
+            --grid-color: #2a3a5a;
+            --axis-color: #3a4a6a;
+            --border-color: #2a3a5a;
+            --primary: #4f9eff;
+            --danger: #ff7a7a;
+            --input-bg: #1e2a44;
+        }
+        [data-theme="light"] {
+            --bg-color: #f0f4f8;
+            --panel-bg: #ffffff;
+            --title-bg: #e0e8f0;
+            --text-main: #1a2a3a;
+            --text-sub: #6a7a8a;
+            --grid-color: #c0d0f0;
+            --axis-color: #a0b0d0;
+            --border-color: #c0d0f0;
+            --input-bg: #f0f4f8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: var(--bg-color); color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 2vh 2vw; transition: background 0.3s;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: minmax(240px, 3fr) 7fr;
+            grid-template-rows: minmax(0, 5.3fr) minmax(0, 2fr);
+            gap: 2vh 2vw;
+            width: 100%; max-width: 1400px; height: 90vh;
+        }
+
+        .image-panel {
+            grid-column: 1; grid-row: 1;
+            width: 100%; height: 100%;
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 30px; overflow: hidden; position: relative;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .image-panel img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text-sub); }
+
+        .info-panel {
+            grid-column: 1; grid-row: 2;
+            width: 100%; height: 100%; padding: 15px;
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 30px; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; transition: all 0.3s;
+        }
+        .info-panel .name { font-size: clamp(18px, 2vw, 24px); font-weight: bold; color: var(--text-main); margin-bottom: 5px; }
+        .info-panel .desc { font-size: clamp(12px, 1.2vw, 14px); color: var(--text-sub); }
+
+        .right-panel {
+            grid-column: 2; grid-row: 1 / span 2;
+            background: var(--panel-bg); border-radius: 30px; padding: 2vh;
+            display: flex; flex-direction: column; transition: all 0.3s;
+            height: 100%; overflow: hidden; position: relative;
+        }
+
+        .top-bar {
+            position: relative; display: flex; justify-content: center; align-items: center;
+            margin-bottom: 1vh; height: 48px; width: 100%;
+        }
+        .title-box {
+            padding: 8px 16px; background: var(--title-bg); border-radius: 8px;
+            font-size: clamp(16px, 1.8vw, 20px); font-weight: bold; color: var(--text-main);
+            cursor: pointer; text-align: center;
+        }
+        .settings-btn {
+            position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: var(--text-sub); cursor: pointer; padding: 8px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .top-left {
+            position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            display: flex; align-items: center; gap: 2px;
+        }
+        .export-btn {
+            background: none; border: none; color: var(--text-sub); cursor: pointer; padding: 8px;
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            transition: color 0.2s, background 0.2s;
+        }
+        #themeBtn .icon-sun { display: none; }
+        body[data-theme="dark"] #themeBtn .icon-sun { display: block; }
+        body[data-theme="dark"] #themeBtn .icon-moon { display: none; }
+        .export-btn:hover { color: var(--primary); background: rgba(79, 158, 255, 0.12); }
+        .export-btn:disabled { opacity: 0.5; cursor: wait; }
+
+        .canvas-container {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            width: 100%; height: 100%; position: relative; touch-action: none;
+        }
+        canvas { display: block; cursor: crosshair; }
+
+        @media (max-width: 850px) or (orientation: portrait) {
+            body { padding: 10px; align-items: flex-start; }
+            .app-container { display: flex; flex-direction: column; height: auto; min-height: 95vh; }
+            .image-panel { height: 40vh; width: 100%; max-width: 400px; margin: 0 auto; }
+            .info-panel { height: auto; min-height: 80px; width: 100%; max-width: 400px; margin: 0 auto; padding: 15px; }
+            .right-panel { height: 55vh; min-height: 400px; width: 100%; margin-top: 10px; }
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-overlay.crop-overlay { padding: 10px; overflow: auto; }
+        .modal {
+            background: var(--panel-bg); border-radius: 20px; width: 90%; max-width: 450px; max-height: 85vh;
+            display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .modal-footer { padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; }
+
+        .section-title { font-weight: bold; font-size: 14px; color: var(--text-sub); margin-top: 10px; }
+        input[type="text"], input[type="number"], select {
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
+            background: var(--input-bg); color: var(--text-main); font-size: 14px; outline: none;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .btn { padding: 10px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: transparent; color: var(--text-main); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+        .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(255, 122, 122, 0.55); }
+        .btn-danger:hover { background: rgba(255, 122, 122, 0.12); }
+        .btn-sm { padding: 8px 10px; font-size: 13px; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn:disabled:hover { background: transparent; }
+        .btn-full { width: 100%; }
+        .row-flex { display: flex; gap: 8px; }
+        .row-flex input { flex: 1; min-width: 0; }
+
+        .preset-box {
+            display: flex; flex-direction: column; gap: 10px; padding: 12px;
+            border: 1px solid var(--border-color); border-radius: 12px;
+            background: rgba(79, 158, 255, 0.07);
+        }
+        .hint { font-size: 12px; line-height: 1.6; color: var(--text-sub); }
+        .hint.warn { color: #ffb44f; }
+        .hint.error { color: var(--danger); }
+
+        /* 裁剪窗口：尺寸由 JS 按屏幕可用空间计算，保证始终完整可见 */
+        .crop-shell { width: auto; max-width: none; max-height: none; background: transparent; box-shadow: none; overflow: visible; border-radius: 0; }
+        .crop-modal-card {
+            background: var(--panel-bg); padding: 16px; border-radius: 20px;
+            display: flex; flex-direction: column; gap: 12px; align-items: stretch;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 96vw;
+        }
+        .crop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .crop-head-title { display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: bold; color: var(--text-main); }
+        .crop-hint { font-size: 11px; font-weight: normal; color: var(--text-sub); }
+        .crop-preview-box { display: flex; align-items: center; gap: 8px; }
+        #cropPreview {
+            width: 44px; height: 73px; display: block; border-radius: 10px;
+            border: 1px solid var(--border-color); background: var(--input-bg);
+        }
+        .crop-zoom-label { font-size: 12px; color: var(--text-sub); font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+        .crop-container {
+            position: relative; overflow: hidden; margin: 0 auto;
+            border-radius: var(--crop-radius, 26px); background: var(--input-bg);
+            touch-action: none; cursor: grab; flex: 0 0 auto; max-width: 100%;
+        }
+        .crop-container.dragging { cursor: grabbing; }
+        .crop-img {
+            position: absolute; top: 0; left: 0; pointer-events: none;
+            user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none;
+        }
+        .crop-grid {
+            position: absolute; inset: 0; pointer-events: none; opacity: 0.5; z-index: 2;
+            background-image: linear-gradient(to right, rgba(79, 158, 255, 0.6) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(79, 158, 255, 0.6) 1px, transparent 1px);
+            background-size: 33.3333% 33.3333%; background-position: -1px -1px;
+        }
+        .crop-frame {
+            position: absolute; inset: 0; pointer-events: none; z-index: 3;
+            border: 2px solid var(--primary); border-radius: var(--crop-radius, 26px);
+        }
+        .crop-tools { display: flex; align-items: center; gap: 8px; }
+        .crop-tools .btn { padding: 8px 10px; min-width: 38px; }
+        .crop-zoom-slider { flex: 1; min-width: 0; accent-color: var(--primary); }
+        .crop-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        @media (max-width: 420px) { .crop-hint { display: none; } }
+
+        .img-src-row { display: flex; gap: 10px; }
+
+        .export-toast {
+            position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px);
+            background: rgba(16, 23, 40, 0.96); color: #e8f0ff; border: 1px solid var(--border-color);
+            padding: 10px 18px; border-radius: 10px; font-size: 13px; line-height: 1.5;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45); opacity: 0; pointer-events: none;
+            transition: opacity 0.25s, transform 0.25s; z-index: 2000; max-width: 80vw; text-align: center;
+        }
+        .export-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <div class="app-container">
+        <div class="image-panel" id="imagePanel">
+            <div class="placeholder" id="placeholder">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#4f9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                <span>点击配置图片</span>
+            </div>
+            <img id="displayImage" src="" alt="">
+        </div>
+
+        <div class="info-panel">
+            <div class="name" id="displayName">未命名角色</div>
+            <div class="desc" id="displayDesc">暂无简介</div>
+        </div>
+
+        <div class="right-panel">
+            <div class="top-bar">
+                <div class="top-left">
+                    <button class="export-btn" id="themeBtn" title="切换深色 / 浅色模式" aria-label="切换主题">
+                        <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line><line x1="4.9" y1="4.9" x2="7" y2="7"></line><line x1="17" y1="17" x2="19.1" y2="19.1"></line><line x1="19.1" y1="4.9" x2="17" y2="7"></line><line x1="7" y1="17" x2="4.9" y2="19.1"></line></svg>
+                        <svg class="icon-moon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
+                    <button class="export-btn" id="exportImageBtn" title="导出为图片" aria-label="导出为图片">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </button>
+                </div>
+                <div class="title-box" id="displayTitle">角色属性</div>
+                <button class="settings-btn" id="settingsBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </div>
+            <div class="canvas-container">
+                <canvas id="radarCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    <input type="file" id="jsonInput" accept=".json,application/json" style="display: none;">
+    <div class="export-toast" id="exportToast"></div>
+
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>设置</h2>
+                <button class="btn btn-secondary" onclick="closeSettings()" style="padding: 8px;">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="section-title">界面外观</div>
+                <select id="themeSelect" onchange="changeTheme(this.value)">
+                    <option value="dark">深色模式</option>
+                    <option value="light">浅色模式</option>
+                </select>
+
+                <div class="section-title">角色信息设置</div>
+                <input type="text" id="inputName" placeholder="角色名字">
+                <input type="text" id="inputDesc" placeholder="角色简介">
+
+                <div class="section-title">修改雷达图标题</div>
+                <input type="text" id="inputTitle" placeholder="雷达图标题">
+
+                <div class="section-title">修改雷达条目和数值</div>
+                <div id="radarInputsContainer" class="grid-2"></div>
+                <div class="row-flex">
+                    <button class="btn btn-secondary btn-sm" onclick="randomizeValues()" style="flex: 1;">随机数值</button>
+                    <button class="btn btn-secondary btn-sm" onclick="resetAllValues()" style="flex: 1;">重置为 50</button>
+                </div>
+
+                <div class="section-title">角色形象</div>
+                <button class="btn btn-secondary btn-full" onclick="openImageSourceModal()">重新配置角色图片</button>
+
+                <div class="section-title">方案预设</div>
+                <div class="preset-box">
+                    <select id="presetSelect" onchange="updatePresetButtons(); syncPresetNameInput();"></select>
+                    <div class="row-3">
+                        <button class="btn btn-primary btn-sm" onclick="applyPreset()">应用</button>
+                        <button class="btn btn-secondary btn-sm" id="updatePresetBtn" onclick="updateSelectedPreset()">更新</button>
+                        <button class="btn btn-danger btn-sm" id="deletePresetBtn" onclick="deletePreset()">删除</button>
+                    </div>
+                    <div class="row-flex">
+                        <input type="text" id="presetNameInput" placeholder="预设名称（留空自动命名）" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCurrentPreset();}">
+                        <button class="btn btn-secondary" onclick="saveCurrentPreset()" style="white-space: nowrap;">存为预设</button>
+                    </div>
+                    <div class="hint" id="presetHint">预设只记录雷达图标题与六维条目名称，应用时不会改动数值、角色名字、简介与形象。</div>
+                </div>
+
+                <div class="section-title">数据与导出</div>
+                <div class="preset-box">
+                    <div class="row-3">
+                        <button class="btn btn-secondary btn-sm" onclick="exportPanelImage()">导出图片</button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportJson()">导出 JSON</button>
+                        <button class="btn btn-secondary btn-sm" onclick="importJsonClick()">导入 JSON</button>
+                    </div>
+                    <div class="hint">JSON 包含保存时间、角色名字与介绍、雷达条目与数值、图片数据与图片路径。</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+                <button class="btn btn-primary" onclick="saveSettings()">保存并应用</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="imageSourceModal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>配置角色图片</h2>
+                <button class="btn btn-secondary" onclick="closeImageSourceModal()" style="padding: 8px;">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="section-title">选择本地图片</div>
+                <button class="btn btn-secondary btn-full" onclick="chooseLocalImage()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    从设备中选择并裁剪
+                </button>
+
+                <div class="section-title">使用网络图片</div>
+                <div class="img-src-row">
+                    <input type="text" id="inputImageUrl" placeholder="粘贴图片链接..." style="flex: 1;">
+                    <button class="btn btn-primary" onclick="applyImageUrl()" style="white-space: nowrap;">应用</button>
+                </div>
+
+                <div class="section-title">调整已有形象</div>
+                <button class="btn btn-secondary btn-full" onclick="recropCurrentImage()">重新裁剪当前形象</button>
+                <div class="hint">也可以直接把图片复制到剪贴板，在页面中按 Ctrl+V 粘贴进入裁剪（Mac 为 ⌘+V）。</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay crop-overlay" id="cropModal">
+        <div class="modal crop-shell">
+            <div class="crop-modal-card">
+                <div class="crop-head">
+                    <div class="crop-head-title">
+                        <span>调整图片位置</span>
+                        <span class="crop-hint">拖动移动 · 滚轮 / 双指缩放 · 双击放大</span>
+                    </div>
+                    <div class="crop-preview-box">
+                        <canvas id="cropPreview" width="88" height="146"></canvas>
+                        <span class="crop-zoom-label" id="cropZoomLabel">适应</span>
+                    </div>
+                </div>
+                <div class="crop-container" id="cropContainer">
+                    <img class="crop-img" id="cropImage" src="" alt="crop" draggable="false">
+                    <div class="crop-grid"></div>
+                    <div class="crop-frame"></div>
+                </div>
+                <div class="crop-tools">
+                    <button class="btn btn-secondary" id="cropZoomOutBtn" title="缩小">−</button>
+                    <input type="range" class="crop-zoom-slider" id="cropZoomSlider" min="100" max="400" step="1" value="100" aria-label="缩放">
+                    <button class="btn btn-secondary" id="cropZoomInBtn" title="放大">＋</button>
+                    <button class="btn btn-secondary" id="cropResetBtn" title="恢复到适配大小">复位</button>
+                </div>
+                <div class="crop-actions">
+                    <button class="btn btn-secondary" onclick="closeCrop()">取消</button>
+                    <button class="btn btn-primary" onclick="applyCrop()">确认裁剪</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const MAX_VAL = 100;
+    const N = 6;
+    const PRESET_STORE_KEY = "radar_presets_v1";
+    const EXPORT_W = 960, EXPORT_H = 700, EXPORT_SCALE = 2;
+
+    // 内置预设：只提供「雷达图标题 + 六维条目名称」模板，可直接应用，不可修改、不可删除
+    const BUILTIN_PRESETS = [
+        { id: "builtin-rpg",    name: "六维属性",    title: "角色属性",   labels: ["力量", "敏捷", "智力", "耐力", "精神", "魅力"] },
+        { id: "builtin-combat", name: "战斗能力（攻防速）",  title: "战斗能力",   labels: ["攻击", "防御", "速度", "生命", "暴击", "韧性"] },
+        { id: "builtin-role",   name: "战术定位（队伍分工）", title: "战斗定位",   labels: ["输出", "承伤", "控制", "辅助", "机动", "成长"] },
+        { id: "builtin-social", name: "社交评价（人格维度）", tle: "人物评价",   labels: ["亲和", "理性", "共情", "表达", "担当", "魅力"] },
+        { id: "builtin-skill",  name: "技能熟练（职业能力）", titlite: "技能熟练度", labels: ["近战", "远程", "法术", "潜行", "生存", "交涉"] },
+        { id: "builtin-blank",  name: "空白模板",            title: "属性面板",   labels: ["属性1", "属性2", "属性3", "属性4", "属性5", "属性6"] }
+    ];
+
+    let state = {
+        labels: ["未命名1", "未命名2", "未命名3", "未命名4", "未命名5", "未命名6"],
+        values: [50, 50, 50, 50, 50, 50],
+        title: "角色属性",
+        imgSrc: "",
+        imgRef: "",
+        charName: "未命名角色",
+        charDesc: "暂无简介",
+        theme: "dark",
+        settingsVisible: true
+    };
+
+    let userPresets = loadUserPresets();
+    let draggingIdx = null;
+    let cx = 0, cy = 0, radius = 0;
+    let textOffset = 0;
+
+    // ---------- DOM 引用 ----------
+    const canvas = document.getElementById('radarCanvas');
+    const ctx = canvas.getContext('2d');
+    const settingsModal = document.getElementById('settingsModal');
+    const imageSourceModal = document.getElementById('imageSourceModal');
+    const cropModal = document.getElementById('cropModal');
+    const fileInput = document.getElementById('fileInput');
+    const jsonInput = document.getElementById('jsonInput');
+    const displayImage = document.getElementById('displayImage');
+    const placeholder = document.getElementById('placeholder');
+    const cropImage = document.getElementById('cropImage');
+    const cropContainer = document.getElementById('cropContainer');
+    const titleBox = document.getElementById('displayTitle');
+
+    // 裁剪输出分辨率固定，屏幕显示尺寸按可用空间等比缩放
+    const CROP_W = 320, CROP_H = 530;
+    const CROP_RESERVED_V = 270;   // 标题+预览 / 工具条 / 按钮 / 内边距预留高度
+    const CROP_RESERVED_H = 60;
+    const CROP_MIN_VIEW = 120;
+    const CROP_MAX_ZOOM = 4;       // 相对「适配」的最大放大倍数
+
+    let cropObj = {
+        src: "", fileName: "",
+        imgWidth: 0, imgHeight: 0,
+        viewW: CROP_W, viewH: CROP_H,     // 当前屏幕上裁剪框的尺寸
+        fitScale: 1,                      // 铺满裁剪框所需的最小缩放
+        scale: 1,                         // 源图 1px 在屏幕上的显示像素
+        offsetX: 0, offsetY: 0,           // 图片左上角相对裁剪框的偏移
+        corsBlocked: false
+    };
+
+    // ---------- 通用工具 ----------
+    let toastTimer = null;
+    function showToast(msg) {
+        const el = document.getElementById('exportToast');
+        if (!el) return;
+        el.innerText = msg;
+        el.className = 'export-toast show';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.className = 'export-toast'; }, 2600);
+    }
+
+    function escapeAttr(value) {
+        return String(value === undefined || value === null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function timeStamp() {
+        const d = new Date();
+        return pad2(d.getFullYear()) + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '_' +
+            pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+    }
+
+    function safeFileName(name) {
+        const base = String(name || '').replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^_+|_+$/g, '');
+        return base || '角色面板';
+    }
+
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () {
+            if (a.parentNode) a.parentNode.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 500);
+        }, 500);
+    }
+
+    function downloadDataUrl(dataUrl, filename) {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 500);
+    }
+
+    // ---------- 预设存储 ----------
+    // 预设只记录「雷达图标题 + 六维条目名称」，不包含数值、角色名字与形象
+    function normalizePreset(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const labels = Array.isArray(raw.labels) ? raw.labels : null;
+        if (!labels) return null;
+        const cleanLabels = [];
+        for (let i = 0; i < N; i++) {
+            const l = labels[i] === undefined || labels[i] === null ? '' : String(labels[i]).trim();
+            cleanLabels.push(l || ('属性' + (i + 1)));
+        }
+        const title = String(raw.title === undefined || raw.title === null ? '' : raw.title).trim();
+        return {
+            id: typeof raw.id === 'string' && raw.id ? raw.id : ('preset-' + Date.now() + '-' + Math.floor(Math.random() * 1000)),
+            name: String(raw.name === undefined || raw.name === null ? '' : raw.name).trim() || '未命名预设',
+            title: title || '角色属性',
+            labels: cleanLabels,
+            builtin: false
+        };
+    }
+
+    function loadUserPresets() {
+        let list = [];
+        try {
+            const raw = localStorage.getItem(PRESET_STORE_KEY);
+            if (raw) list = JSON.parse(raw);
+        } catch (err) {
+            list = [];
+        }
+        if (!Array.isArray(list)) return [];
+        const out = [];
+        for (let i = 0; i < list.length; i++) {
+            const p = normalizePreset(list[i]);
+            if (p) out.push(p);
+        }
+        return out;
+    }
+
+    function saveUserPresets() {
+        try {
+            localStorage.setItem(PRESET_STORE_KEY, JSON.stringify(userPresets));
+            return true;
+        } catch (err) {
+            showToast('预设保存失败：浏览器本地存储不可用');
+            return false;
+        }
+    }
+
+    function getAllPresets() { return BUILTIN_PRESETS.concat(userPresets); }
+
+    function findPreset(id) {
+        if (!id) return null;
+        const list = getAllPresets();
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].id === id) return list[i];
+        }
+        return null;
+    }
+
+    function isBuiltinPreset(id) {
+        for (let i = 0; i < BUILTIN_PRESETS.length; i++) {
+            if (BUILTIN_PRESETS[i].id === id) return true;
+        }
+        return false;
+    }
+
+    function findUserPresetByName(name, exceptId) {
+        const target = String(name === undefined || name === null ? '' : name).trim();
+        if (!target) return null;
+        for (let i = 0; i < userPresets.length; i++) {
+            if (userPresets[i].name === target && userPresets[i].id !== exceptId) return userPresets[i];
+        }
+        return null;
+    }
+
+    // ---------- 预设操作 ----------
+    function selectedPresetId() {
+        const sel = document.getElementById('presetSelect');
+        return sel ? sel.value : '';
+    }
+
+    function setPresetHint(text, kind) {
+        const el = document.getElementById('presetHint');
+        if (!el) return;
+        el.className = 'hint' + (kind === 'warn' ? ' warn' : (kind === 'error' ? ' error' : ''));
+        el.innerText = text;
+    }
+
+    function updatePresetButtons() {
+        const id = selectedPresetId();
+        const custom = !!id && !isBuiltinPreset(id);
+        const updateBtn = document.getElementById('updatePresetBtn');
+        const deleteBtn = document.getElementById('deletePresetBtn');
+        if (updateBtn) updateBtn.disabled = !custom;
+        if (deleteBtn) deleteBtn.disabled = !custom;
+    }
+
+    function syncPresetNameInput() {
+        const input = document.getElementById('presetNameInput');
+        if (!input) return;
+        const preset = findPreset(selectedPresetId());
+        input.value = (preset && !isBuiltinPreset(preset.id)) ? preset.name : '';
+    }
+
+    function renderPresetOptions(keepId) {
+        const sel = document.getElementById('presetSelect');
+        if (!sel) return;
+        const want = keepId || sel.value || '';
+        let html = '<optgroup label="内置预设">';
+        for (let i = 0; i < BUILTIN_PRESETS.length; i++) {
+            const p = BUILTIN_PRESETS[i];
+            html += '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) + '</option>';
+        }
+        html += '</optgroup>';
+        if (userPresets.length) {
+            html += '<optgroup label="自定义预设">';
+            for (let i = 0; i < userPresets.length; i++) {
+                const p = userPresets[i];
+                html += '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) + '</option>';
+            }
+            html += '</optgroup>';
+        }
+        sel.innerHTML = html;
+        if (want && findPreset(want)) sel.value = want;
+        else sel.selectedIndex = 0;
+        updatePresetButtons();
+        syncPresetNameInput();
+    }
+
+    function defaultPresetName() {
+        let index = userPresets.length + 1;
+        let name = '自定义方案 ' + index;
+        while (findUserPresetByName(name)) {
+            index++;
+            name = '自定义方案 ' + index;
+        }
+        return name;
+    }
+
+    function currentTitleFromForm() {
+        const el = document.getElementById('inputTitle');
+        const v = el ? el.value.trim() : '';
+        return v || state.title || '角色属性';
+    }
+
+    function currentLabelsFromForm() {
+        const out = [];
+        for (let i = 0; i < N; i++) {
+            const el = document.getElementById('inputLabel_' + i);
+            const v = el ? el.value.trim() : '';
+            out.push(v || state.labels[i] || ('属性' + (i + 1)));
+        }
+        return out;
+    }
+
+    function currentValuesFromForm() {
+        const out = [];
+        for (let i = 0; i < N; i++) {
+            const el = document.getElementById('inputValue_' + i);
+            const v = el ? parseInt(el.value, 10) : NaN;
+            out.push(isNaN(v) ? state.values[i] : Math.max(0, Math.min(MAX_VAL, v)));
+        }
+        return out;
+    }
+
+    function applyPreset(id) {
+        const preset = findPreset(id || selectedPresetId());
+        if (!preset) return false;
+        // 只替换雷达图标题与六维条目名称，数值、角色名字、简介、形象均保持不变
+        state.title = preset.title;
+        state.labels = preset.labels.slice();
+        const titleEl = document.getElementById('inputTitle');
+        if (titleEl) titleEl.value = state.title;
+        for (let i = 0; i < N; i++) {
+            const el = document.getElementById('inputLabel_' + i);
+            if (el) el.value = state.labels[i];
+        }
+        redraw();
+        renderPresetOptions(preset.id);
+        setPresetHint('已应用预设「' + preset.name + '」：标题与六维条目已替换，数值与角色信息不变');
+        return true;
+    }
+
+    function saveCurrentPreset() {
+        const nameInput = document.getElementById('presetNameInput');
+        const typed = nameInput ? nameInput.value.trim() : '';
+        const name = typed || defaultPresetName();
+        const title = currentTitleFromForm();
+        const labels = currentLabelsFromForm();
+        const exists = findUserPresetByName(name);
+        if (exists && !window.confirm('已存在同名自定义预设「' + name + '」，是否覆盖？')) return false;
+        if (exists) {
+            exists.name = name;
+            exists.title = title;
+            exists.labels = labels;
+            saveUserPresets();
+            renderPresetOptions(exists.id);
+            setPresetHint('已更新自定义预设「' + exists.name + '」');
+            return true;
+        }
+        const preset = normalizePreset({ name: name, title: title, labels: labels });
+        userPresets.push(preset);
+        saveUserPresets();
+        renderPresetOptions(preset.id);
+        setPresetHint('已保存自定义预设「' + preset.name + '」（仅记录标题与六维条目）');
+        return true;
+    }
+
+    function updateSelectedPreset() {
+        const preset = findPreset(selectedPresetId());
+        if (!preset) return false;
+        if (isBuiltinPreset(preset.id)) {
+            setPresetHint('内置预设不可修改，请用「存为预设」另存一份。', 'warn');
+            return false;
+        }
+        const nameInput = document.getElementById('presetNameInput');
+        const name = (nameInput && nameInput.value.trim()) || preset.name;
+        if (name !== preset.name && findUserPresetByName(name, preset.id)) {
+            setPresetHint('已存在同名预设「' + name + '」，请换个名称。', 'error');
+            return false;
+        }
+        preset.name = name;
+        preset.title = currentTitleFromForm();
+        preset.labels = currentLabelsFromForm();
+        saveUserPresets();
+        renderPresetOptions(preset.id);
+        setPresetHint('已更新预设「' + preset.name + '」的标题与六维条目（可在此改名）');
+        return true;
+    }
+
+    function deletePreset() {
+        const preset = findPreset(selectedPresetId());
+        if (!preset) return false;
+        if (isBuiltinPreset(preset.id)) {
+            setPresetHint('内置预设不可删除。', 'warn');
+            return false;
+        }
+        if (!window.confirm('确定删除自定义预设「' + preset.name + '」吗？')) return false;
+        userPresets = userPresets.filter(function (p) { return p.id !== preset.id; });
+        saveUserPresets();
+        renderPresetOptions();
+        setPresetHint('已删除预设「' + preset.name + '」');
+        return true;
+    }
+
+    // ---------- 设置表单 ----------
+    function fillSettingsForm() {
+        document.getElementById('themeSelect').value = state.theme;
+        document.getElementById('inputName').value = state.charName;
+        document.getElementById('inputDesc').value = state.charDesc;
+        document.getElementById('inputTitle').value = state.title;
+        const container = document.getElementById('radarInputsContainer');
+        if (!container) return;
+        let html = '';
+        for (let i = 0; i < N; i++) {
+            html += '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+                '<input type="text" id="inputLabel_' + i + '" value="' + escapeAttr(state.labels[i]) + '" placeholder="名称">' +
+                '<input type="number" id="inputValue_' + i + '" value="' + escapeAttr(state.values[i]) + '" placeholder="数值" min="0" max="100">' +
+                '</div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function readFormToState() {
+        state.theme = document.getElementById('themeSelect').value === 'light' ? 'light' : 'dark';
+        state.charName = document.getElementById('inputName').value.trim() || '未命名角色';
+        state.charDesc = document.getElementById('inputDesc').value.trim() || '暂无简介';
+        state.title = document.getElementById('inputTitle').value.trim() || '角色属性';
+        state.labels = currentLabelsFromForm();
+        state.values = currentValuesFromForm();
+    }
+
+    function openSettings() {
+        fillSettingsForm();
+        renderPresetOptions();
+        setPresetHint('预设只记录雷达图标题与六维条目名称，应用时不会改动数值、角色名字、简介与形象。');
+        settingsModal.classList.add('active');
+    }
+
+    function closeSettings() { settingsModal.classList.remove('active'); }
+
+    function changeTheme(val) {
+        state.theme = val === 'light' ? 'light' : 'dark';
+        redraw();
+    }
+
+    // 顶栏快捷切换主题（与设置里的下拉框保持同步）
+    function toggleTheme() {
+        state.theme = state.theme === 'light' ? 'dark' : 'light';
+        const sel = document.getElementById('themeSelect');
+        if (sel) sel.value = state.theme;
+        redraw();
+        showToast(state.theme === 'light' ? '已切换到浅色模式' : '已切换到深色模式');
+    }
+
+    // 快捷填充六维数值：随机 / 统一重置
+    function randomizeValues() {
+        for (let i = 0; i < N; i++) {
+            const v = 20 + Math.floor(Math.random() * 81);
+            const el = document.getElementById('inputValue_' + i);
+            if (el) el.value = String(v);
+            state.values[i] = v;
+        }
+        redraw();
+        showToast('已随机生成六维数值');
+    }
+
+    function resetAllValues() {
+        for (let i = 0; i < N; i++) {
+            const el = document.getElementById('inputValue_' + i);
+            if (el) el.value = '50';
+            state.values[i] = 50;
+        }
+        redraw();
+        showToast('六维数值已重置为 50');
+    }
+
+    function saveSettings() {
+        readFormToState();
+        redraw();
+        closeSettings();
+        showToast('设置已保存');
+    }
+
+    // ---------- 绘图 ----------
+    function getRadarPalette() {
+        const isDark = state.theme === 'dark';
+        return {
+            text: isDark ? '#c8d8ff' : '#2a3a5a',
+            grid: isDark ? '#2a3a5a' : '#c0d0f0',
+            axis: isDark ? '#3a4a6a' : '#a0b0d0',
+            accent: '#4f9eff',
+            fill: 'rgba(79, 158, 255, 0.25)'
+        };
+    }
+
+    function vertexPosAt(idx, val, centerX, centerY, rad) {
+        const angle = 2 * Math.PI * idx / N - Math.PI / 2;
+        const r = (val / MAX_VAL) * rad;
+        return { x: centerX + r * Math.cos(angle), y: centerY + r * Math.sin(angle) };
+    }
+
+    // 屏幕渲染与图片导出共用这套雷达绘制逻辑
+    function drawRadar(target, centerX, centerY, rad, labelOffset, palette) {
+        const colors = palette || getRadarPalette();
+        const labels = state.labels;
+        const values = state.values;
+
+        target.strokeStyle = colors.grid;
+        target.lineWidth = 1;
+        for (let level = 1; level <= 5; level++) {
+            const r = rad * level / 5;
+            target.beginPath();
+            for (let i = 0; i <= N; i++) {
+                const a = 2 * Math.PI * (i % N) / N - Math.PI / 2;
+                const x = centerX + r * Math.cos(a);
+                const y = centerY + r * Math.sin(a);
+                if (i === 0) target.moveTo(x, y);
+                else target.lineTo(x, y);
+            }
+            target.closePath();
+            target.stroke();
+        }
+
+        target.fillStyle = colors.text;
+        const fontSize = Math.max(12, Math.min(20, Math.round(rad * 0.12)));
+        target.font = 'bold ' + fontSize + 'px sans-serif';
+        target.textAlign = 'center';
+        target.textBaseline = 'middle';
+
+        for (let i = 0; i < N; i++) {
+            const a = 2 * Math.PI * i / N - Math.PI / 2;
+            const ex = centerX + rad * Math.cos(a);
+            const ey = centerY + rad * Math.sin(a);
+
+            target.strokeStyle = colors.axis;
+            target.beginPath();
+            target.moveTo(centerX, centerY);
+            target.lineTo(ex, ey);
+            target.stroke();
+
+            const lx = centerX + (rad + labelOffset) * Math.cos(a);
+            const ly = centerY + (rad + labelOffset) * Math.sin(a);
+            target.fillText(labels[i], lx, ly);
+        }
+
+        target.beginPath();
+        for (let i = 0; i < N; i++) {
+            const pos = vertexPosAt(i, values[i], centerX, centerY, rad);
+            if (i === 0) target.moveTo(pos.x, pos.y);
+            else target.lineTo(pos.x, pos.y);
+        }
+        target.closePath();
+        target.fillStyle = colors.fill;
+        target.fill();
+        target.strokeStyle = colors.accent;
+        target.lineWidth = Math.max(2, Math.round(rad * 0.015));
+        target.stroke();
+
+        const dotRadius = Math.max(6, Math.round(rad * 0.06));
+        for (let i = 0; i < N; i++) {
+            const pos = vertexPosAt(i, values[i], centerX, centerY, rad);
+            target.beginPath();
+            target.arc(pos.x, pos.y, dotRadius, 0, Math.PI * 2);
+            target.fillStyle = '#ffffff';
+            target.fill();
+            target.beginPath();
+            target.arc(pos.x, pos.y, dotRadius * 0.7, 0, Math.PI * 2);
+            target.fillStyle = colors.accent;
+            target.fill();
+            target.beginPath();
+            target.arc(pos.x, pos.y, dotRadius * 0.3, 0, Math.PI * 2);
+            target.fillStyle = '#eef7ff';
+            target.fill();
+        }
+    }
+
+    function redraw() {
+        document.body.setAttribute('data-theme', state.theme);
+        document.getElementById('displayTitle').innerText = state.title;
+        document.getElementById('displayName').innerText = state.charName;
+        document.getElementById('displayDesc').innerText = state.charDesc;
+        document.getElementById('settingsBtn').style.display = state.settingsVisible ? 'block' : 'none';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawRadar(ctx, cx, cy, radius, textOffset);
+    }
+
+    function resizeCanvas() {
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        const size = Math.max(200, Math.min(rect.width, rect.height));
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+
+        cx = size / 2;
+        cy = size / 2;
+        radius = size * 0.32;
+        textOffset = size * 0.10;
+
+        redraw();
+    }
+
+    const resizeObserver = new ResizeObserver(function () { resizeCanvas(); });
+    resizeObserver.observe(document.querySelector('.canvas-container'));
+    resizeCanvas();
+
+    // ---------- 拖拽调整数值 ----------
+    function getCanvasPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * (canvas.width / rect.width) / (window.devicePixelRatio || 1),
+            y: (clientY - rect.top) * (canvas.height / rect.height) / (window.devicePixelRatio || 1)
+        };
+    }
+
+    function onPointerDown(e) {
+        e.preventDefault();
+        const pos = getCanvasPos(e);
+        const hitRadius = Math.max(20, radius * 0.15);
+        for (let i = 0; i < N; i++) {
+            const v = vertexPosAt(i, state.values[i], cx, cy, radius);
+            const dist = Math.hypot(pos.x - v.x, pos.y - v.y);
+            if (dist <= hitRadius) { draggingIdx = i; break; }
+        }
+    }
+
+    function onPointerMove(e) {
+        if (draggingIdx === null) return;
+        e.preventDefault();
+        const pos = getCanvasPos(e);
+        const a = 2 * Math.PI * draggingIdx / N - Math.PI / 2;
+        let proj = (pos.x - cx) * Math.cos(a) + (pos.y - cy) * Math.sin(a);
+        proj = Math.max(0, Math.min(radius, proj));
+        state.values[draggingIdx] = Math.round((proj / radius) * MAX_VAL);
+        redraw();
+    }
+
+    function onPointerUp() { draggingIdx = null; }
+
+    canvas.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+    canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
+
+    // ---------- 图片导出 ----------
+    function getExportPalette(theme) {
+        const dark = theme !== 'light';
+        return dark ? {
+            bg: '#0b0e1a', card: '#101728', panel: '#151d31', border: '#2a3a5a',
+            titleBg: '#1e2a44', text: '#e0ecff', sub: '#8f9bb5', accent: '#4f9eff'
+        } : {
+            bg: '#eef3f9', card: '#ffffff', panel: '#f7fafe', border: '#c0d0f0',
+            titleBg: '#e8eef7', text: '#1a2a3a', sub: '#6a7a8a', accent: '#2f7fe0'
+        };
+    }
+
+    function roundRectPath(target, x, y, w, h, r) {
+        const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+        target.beginPath();
+        target.moveTo(x + rr, y);
+        target.lineTo(x + w - rr, y);
+        target.arcTo(x + w, y, x + w, y + rr, rr);
+        target.lineTo(x + w, y + h - rr);
+        target.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+        target.lineTo(x + rr, y + h);
+        target.arcTo(x, y + h, x, y + h - rr, rr);
+        target.lineTo(x, y + rr);
+        target.arcTo(x, y, x + rr, y, rr);
+        target.closePath();
+    }
+
+    function clipText(target, text, maxWidth) {
+        let out = String(text === undefined || text === null ? '' : text);
+        if (target.measureText(out).width <= maxWidth) return out;
+        while (out.length > 1 && target.measureText(out + '…').width > maxWidth) {
+            out = out.slice(0, -1);
+        }
+        return out + '…';
+    }
+
+    function wrapTextLines(target, text, maxWidth, maxLines) {
+        const src = String(text === undefined || text === null ? '' : text).trim();
+        if (!src) return [];
+        const lines = [];
+        let line = '';
+        for (let i = 0; i < src.length; i++) {
+            const next = line + src.charAt(i);
+            if (line && target.measureText(next).width > maxWidth) {
+                lines.push(line);
+                line = src.charAt(i);
+            } else {
+                line = next;
+            }
+        }
+        if (line) lines.push(line);
+        if (lines.length <= maxLines) return lines;
+        const kept = lines.slice(0, maxLines);
+        let last = kept[maxLines - 1];
+        while (last.length > 1 && target.measureText(last + '…').width > maxWidth) {
+            last = last.slice(0, -1);
+        }
+        kept[maxLines - 1] = last + '…';
+        return kept;
+    }
+
+    function drawPortrait(target, img, x, y, w, h, r, colors) {
+        target.save();
+        roundRectPath(target, x, y, w, h, r);
+        target.clip();
+        target.fillStyle = colors.titleBg;
+        target.fillRect(x, y, w, h);
+
+        const ready = !!img && img.complete && img.naturalWidth > 0;
+        if (ready) {
+            const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+            const dw = img.naturalWidth * scale;
+            const dh = img.naturalHeight * scale;
+            target.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+        } else {
+            const icx = x + w / 2;
+            const icy = y + h / 2 - 20;
+            target.strokeStyle = colors.accent;
+            target.lineWidth = 3;
+            roundRectPath(target, icx - 32, icy - 32, 64, 64, 12);
+            target.stroke();
+            target.beginPath();
+            target.arc(icx - 12, icy - 12, 5, 0, Math.PI * 2);
+            target.fillStyle = colors.accent;
+            target.fill();
+            target.beginPath();
+            target.moveTo(icx - 30, icy + 28);
+            target.lineTo(icx - 4, icy + 2);
+            target.lineTo(icx + 30, icy + 30);
+            target.stroke();
+            target.fillStyle = colors.sub;
+            target.textAlign = 'center';
+            target.textBaseline = 'middle';
+            target.font = 'bold 15px -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif';
+            target.fillText('暂无角色形象', icx, icy + 62);
+        }
+        target.restore();
+
+        target.strokeStyle = colors.border;
+        target.lineWidth = 2;
+        roundRectPath(target, x, y, w, h, r);
+        target.stroke();
+    }
+
+    function drawExportPanel(target, colors, img) {
+        const fontFamily = '-apple-system, "Segoe UI", "Microsoft YaHei", sans-serif';
+
+        // 底板
+        target.fillStyle = colors.bg;
+        target.fillRect(0, 0, EXPORT_W, EXPORT_H);
+        target.fillStyle = colors.card;
+        roundRectPath(target, 24, 24, 912, 652, 28);
+        target.fill();
+        target.strokeStyle = colors.border;
+        target.lineWidth = 1.5;
+        target.stroke();
+
+        // 左侧：角色形象 + 名字简介
+        drawPortrait(target, img, 56, 52, 304, 520, 28, colors);
+
+        target.fillStyle = colors.titleBg;
+        roundRectPath(target, 56, 584, 304, 80, 20);
+        target.fill();
+
+        target.textAlign = 'center';
+        target.textBaseline = 'middle';
+        target.fillStyle = colors.text;
+        target.font = 'bold 22px ' + fontFamily;
+        target.fillText(clipText(target, state.charName || '未命名角色', 264), 208, 612);
+
+        target.fillStyle = colors.sub;
+        target.font = '14px ' + fontFamily;
+        const descLines = wrapTextLines(target, state.charDesc || '暂无简介', 264, 2);
+        for (let i = 0; i < descLines.length; i++) {
+            target.fillText(descLines[i], 208, 634 + i * 18);
+        }
+
+        // 右侧：标题 + 雷达图
+        target.fillStyle = colors.panel;
+        roundRectPath(target, 384, 52, 528, 612, 24);
+        target.fill();
+        target.strokeStyle = colors.border;
+        target.lineWidth = 1.5;
+        target.stroke();
+
+        target.fillStyle = colors.text;
+        target.font = 'bold 24px ' + fontFamily;
+        target.textAlign = 'center';
+        target.textBaseline = 'middle';
+        target.fillText(clipText(target, state.title || '角色属性', 440), 648, 96);
+
+        drawRadar(target, 648, 396, 172, 54, {
+            text: colors.text,
+            grid: colors.border,
+            axis: colors.border,
+            accent: colors.accent,
+            fill: 'rgba(79, 158, 255, 0.25)'
+        });
+    }
+
+    function loadImageForExport(src) {
+        return new Promise(function (resolve) {
+            if (!src) { resolve(null); return; }
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function () { resolve(img); };
+            img.onerror = function () { resolve(null); };
+            img.src = src;
+        });
+    }
+
+    function exportPanelImage() {
+        const filename = safeFileName(state.charName || state.title) + '_' + timeStamp() + '.png';
+        loadImageForExport(state.imgSrc).then(function (img) {
+            const out = document.createElement('canvas');
+            out.width = EXPORT_W * EXPORT_SCALE;
+            out.height = EXPORT_H * EXPORT_SCALE;
+            const outCtx = out.getContext('2d');
+            outCtx.scale(EXPORT_SCALE, EXPORT_SCALE);
+            drawExportPanel(outCtx, getExportPalette(state.theme), img);
+
+            try {
+                downloadDataUrl(out.toDataURL('image/png'), filename);
+                showToast('图片已导出：' + filename);
+            } catch (err) {
+                if (typeof out.toBlob === 'function') {
+                    out.toBlob(function (blob) {
+                        if (!blob) { showToast('图片导出失败，请重试'); return; }
+                        downloadBlob(blob, filename);
+                        showToast('图片已导出：' + filename);
+                    }, 'image/png');
+                } else {
+                    showToast('图片导出失败：当前浏览器不支持');
+                }
+            }
+        });
+    }
+
+    // ---------- JSON 导入导出 ----------
+    function buildPanelPayload() {
+        return {
+            app: 'SuperCreator',
+            type: 'character-radar-panel',
+            version: 1,
+            savedAt: new Date().toISOString(),
+            title: state.title,
+            theme: state.theme,
+            character: { name: state.charName, desc: state.charDesc },
+            labels: state.labels.slice(),
+            values: state.values.slice(),
+            image: { data: state.imgSrc, ref: state.imgRef }
+        };
+    }
+
+    function exportJson() {
+        const text = JSON.stringify(buildPanelPayload(), null, 2);
+        const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+        const filename = safeFileName(state.charName || state.title) + '_' + timeStamp() + '.json';
+        downloadBlob(blob, filename);
+        showToast('JSON 已导出：' + filename);
+    }
+
+    function importJsonClick() {
+        if (!jsonInput) return;
+        jsonInput.value = '';
+        jsonInput.click();
+    }
+
+    function sanitizePanelData(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const labels = Array.isArray(raw.labels) ? raw.labels : [];
+        const values = Array.isArray(raw.values) ? raw.values : [];
+        if (!labels.length || !values.length) return null;
+
+        const outLabels = [];
+        const outValues = [];
+        for (let i = 0; i < N; i++) {
+            const l = labels[i] === undefined || labels[i] === null ? '' : String(labels[i]).trim();
+            outLabels.push(l || ('属性' + (i + 1)));
+            const v = parseInt(values[i], 10);
+            outValues.push(isNaN(v) ? 0 : Math.max(0, Math.min(MAX_VAL, v)));
+        }
+
+        const character = (raw.character && typeof raw.character === 'object') ? raw.character : {};
+        const image = (raw.image && typeof raw.image === 'object') ? raw.image : {};
+
+        const pickText = function (value, fallback) {
+            const t = String(value === undefined || value === null ? '' : value).trim();
+            return t || fallback;
+        };
+
+        return {
+            title: pickText(raw.title, '角色属性'),
+            theme: raw.theme === 'light' ? 'light' : 'dark',
+            charName: pickText(character.name, '未命名角色'),
+            charDesc: pickText(character.desc, '暂无简介'),
+            labels: outLabels,
+            values: outValues,
+            imgSrc: typeof image.data === 'string' ? image.data : '',
+            imgRef: typeof image.ref === 'string' ? image.ref : ''
+        };
+    }
+
+    function applyPanelData(data) {
+        state.title = data.title;
+        state.theme = data.theme;
+        state.charName = data.charName;
+        state.charDesc = data.charDesc;
+        state.labels = data.labels.slice();
+        state.values = data.values.slice();
+        state.imgSrc = data.imgSrc || '';
+        state.imgRef = data.imgRef || '';
+        syncImagePanel();
+        fillSettingsForm();
+        renderPresetOptions();
+        redraw();
+    }
+
+    function importJsonText(text, fileName) {
+        let raw = null;
+        try {
+            raw = JSON.parse(text);
+        } catch (err) {
+            showToast('JSON 解析失败：文件格式不正确');
+            return false;
+        }
+        const data = sanitizePanelData(raw);
+        if (!data) {
+            showToast('JSON 内容不完整：需要 labels 与 values');
+            return false;
+        }
+        applyPanelData(data);
+        showToast('已导入 ' + (fileName || 'JSON'));
+        return true;
+    }
+
+    // ---------- 角色图片 ----------
+    function syncImagePanel() {
+        if (state.imgSrc) {
+            if (displayImage.getAttribute('src') !== state.imgSrc) displayImage.src = state.imgSrc;
+            displayImage.style.display = 'block';
+            placeholder.style.display = 'none';
+        } else {
+            displayImage.removeAttribute('src');
+            displayImage.style.display = 'none';
+            placeholder.style.display = 'flex';
+        }
+    }
+
+    function openImageSourceModal() {
+        const urlInput = document.getElementById('inputImageUrl');
+        if (urlInput) urlInput.value = state.imgRef || '';
+        imageSourceModal.classList.add('active');
+    }
+
+    function closeImageSourceModal() { imageSourceModal.classList.remove('active'); }
+
+    function applyImageUrl() {
+        const input = document.getElementById('inputImageUrl');
+        const url = input ? input.value.trim() : '';
+        if (!url) { showToast('请输入图片链接'); return false; }
+        state.imgSrc = url;
+        state.imgRef = url;
+        syncImagePanel();
+        closeImageSourceModal();
+        showToast('已应用网络图片');
+        return true;
+    }
+
+    function chooseLocalImage() {
+        closeImageSourceModal();
+        if (fileInput) fileInput.click();
+    }
+
+    // 对已经设置的形象再次裁剪
+    function recropCurrentImage() {
+        if (!state.imgSrc) { showToast('还没有设置角色形象'); return false; }
+        closeImageSourceModal();
+        openCropWithSource(state.imgSrc, state.imgRef || '');
+        return true;
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function (e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                openCropWithSource(String(event.target.result || ''), file.name || '');
+            };
+            reader.onerror = function () { showToast('读取本地图片失败'); };
+            reader.readAsDataURL(file);
+            fileInput.value = '';
+        });
+    }
+
+    // ---------- 图片裁剪 ----------
+    // 裁剪框尺寸随屏幕可用空间变化，输出分辨率始终为 CROP_W x CROP_H
+    function computeCropViewSize() {
+        const availW = Math.max(CROP_MIN_VIEW, Math.min(window.innerWidth - CROP_RESERVED_H, window.innerWidth * 0.92, 420));
+        const availH = Math.max(CROP_MIN_VIEW, window.innerHeight - CROP_RESERVED_V);
+        const k = Math.min(availW / CROP_W, availH / CROP_H, 1);
+        const scale = Math.max(0.2, k);
+        return { w: CROP_W * scale, h: CROP_H * scale };
+    }
+
+    function clampCropScale(value) {
+        const min = cropObj.fitScale || 0.01;
+        const max = min * CROP_MAX_ZOOM;
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function cropViewPoint(clientX, clientY) {
+        const rect = cropContainer.getBoundingClientRect();
+        return {
+            x: clientX - rect.left - cropContainer.clientLeft,
+            y: clientY - rect.top - cropContainer.clientTop
+        };
+    }
+
+    function syncCropImageStyle() {
+        cropImage.style.width = (cropObj.imgWidth * cropObj.scale) + 'px';
+        cropImage.style.height = (cropObj.imgHeight * cropObj.scale) + 'px';
+        cropImage.style.left = cropObj.offsetX + 'px';
+        cropImage.style.top = cropObj.offsetY + 'px';
+    }
+
+    function clampCropOffsets() {
+        const dispW = cropObj.imgWidth * cropObj.scale;
+        const dispH = cropObj.imgHeight * cropObj.scale;
+        cropObj.offsetX = Math.min(0, Math.max(cropObj.viewW - dispW, cropObj.offsetX));
+        cropObj.offsetY = Math.min(0, Math.max(cropObj.viewH - dispH, cropObj.offsetY));
+    }
+
+    function centerCropView() {
+        cropObj.offsetX = (cropObj.viewW - cropObj.imgWidth * cropObj.scale) / 2;
+        cropObj.offsetY = (cropObj.viewH - cropObj.imgHeight * cropObj.scale) / 2;
+        clampCropOffsets();
+        syncCropImageStyle();
+    }
+
+    // 按当前屏幕重新计算裁剪框大小；resetFraming 为 true 时重新适配并居中
+    function applyCropViewSize(resetFraming) {
+        const prevW = cropObj.viewW, prevH = cropObj.viewH;
+        const prevScale = cropObj.scale, prevX = cropObj.offsetX, prevY = cropObj.offsetY;
+        const size = computeCropViewSize();
+
+        cropObj.viewW = size.w;
+        cropObj.viewH = size.h;
+        cropContainer.style.width = size.w + 'px';
+        cropContainer.style.height = size.h + 'px';
+        cropContainer.style.setProperty('--crop-radius', Math.max(12, Math.round(Math.min(size.w, size.h) * 0.085)) + 'px');
+
+        if (!cropObj.imgWidth || !cropObj.imgHeight) return;
+
+        cropObj.fitScale = Math.max(size.w / cropObj.imgWidth, size.h / cropObj.imgHeight);
+
+        if (resetFraming || !prevScale) {
+            cropObj.scale = cropObj.fitScale;
+            centerCropView();
+            return;
+        }
+
+        // 屏幕尺寸变化时保持当前构图：以裁剪框中心为基准等比缩放
+        const factor = prevW > 0 ? size.w / prevW : 1;
+        const srcCenterX = ((prevW / 2) - prevX) / prevScale;
+        const srcCenterY = ((prevH / 2) - prevY) / prevScale;
+        cropObj.scale = clampCropScale(prevScale * factor);
+        cropObj.offsetX = size.w / 2 - srcCenterX * cropObj.scale;
+        cropObj.offsetY = size.h / 2 - srcCenterY * cropObj.scale;
+        clampCropOffsets();
+        syncCropImageStyle();
+    }
+
+    function zoomCropTo(targetScale, anchorX, anchorY) {
+        if (!cropObj.imgWidth || !cropObj.scale) return;
+        const ax = anchorX === undefined ? cropObj.viewW / 2 : anchorX;
+        const ay = anchorY === undefined ? cropObj.viewH / 2 : anchorY;
+        const nextScale = clampCropScale(targetScale);
+        const srcX = (ax - cropObj.offsetX) / cropObj.scale;
+        const srcY = (ay - cropObj.offsetY) / cropObj.scale;
+        cropObj.scale = nextScale;
+        cropObj.offsetX = ax - srcX * nextScale;
+        cropObj.offsetY = ay - srcY * nextScale;
+        clampCropOffsets();
+        syncCropImageStyle();
+        updateCropUI();
+    }
+
+    function zoomCropBy(factor, anchorX, anchorY) {
+        zoomCropTo(cropObj.scale * factor, anchorX, anchorY);
+    }
+
+    function resetCropView() {
+        cropObj.scale = cropObj.fitScale;
+        centerCropView();
+        updateCropUI();
+    }
+
+    function updateCropUI() {
+        const pct = cropObj.fitScale > 0 ? Math.round((cropObj.scale / cropObj.fitScale) * 100) : 100;
+        const label = document.getElementById('cropZoomLabel');
+        if (label) label.innerText = pct <= 100 ? '适应' : pct + '%';
+        const slider = document.getElementById('cropZoomSlider');
+        if (slider && document.activeElement !== slider) {
+            slider.value = String(Math.max(100, Math.min(400, pct)));
+        }
+        drawCropPreview();
+    }
+
+    // 实时预览：把裁剪框内的画面缩到小图上
+    function drawCropPreview() {
+        const preview = document.getElementById('cropPreview');
+        if (!preview || !cropObj.imgWidth || !cropObj.scale) return;
+        const pctx = preview.getContext('2d');
+        if (!pctx) return;
+        const pw = preview.width, ph = preview.height;
+        pctx.clearRect(0, 0, pw, ph);
+        if (!cropImage.complete || !cropImage.naturalWidth) return;
+        const sx = -cropObj.offsetX / cropObj.scale;
+        const sy = -cropObj.offsetY / cropObj.scale;
+        const sw = cropObj.viewW / cropObj.scale;
+        const sh = cropObj.viewH / cropObj.scale;
+        try {
+            pctx.drawImage(cropImage, sx, sy, sw, sh, 0, 0, pw, ph);
+        } catch (err) { /* 跨域受限时预览留空 */ }
+    }
+
+    // 载入图片进入裁剪：优先申请跨域权限，失败则退回仅预览模式
+    function openCropWithSource(src, fileName) {
+        if (!src) { showToast('请先选择一张图片'); return false; }
+        const isData = /^data:/i.test(src);
+        const img = new Image();
+        if (!isData) img.crossOrigin = 'anonymous';
+        img.onload = function () {
+            beginCropSession(img.src, img.naturalWidth, img.naturalHeight, fileName, false);
+        };
+        img.onerror = function () {
+            if (isData) { showToast('无法读取该图片，请换一张'); return; }
+            const fallback = new Image();
+            fallback.onload = function () {
+                beginCropSession(src, fallback.naturalWidth, fallback.naturalHeight, fileName, true);
+            };
+            fallback.onerror = function () { showToast('无法读取该图片，请换一张'); };
+            fallback.src = src;
+        };
+        img.src = src;
+        return true;
+    }
+
+    function beginCropSession(src, width, height, fileName, corsBlocked) {
+        cropObj.src = src;
+        cropObj.fileName = fileName || '';
+        cropObj.imgWidth = width || 1;
+        cropObj.imgHeight = height || 1;
+        cropObj.corsBlocked = !!corsBlocked;
+        cropObj.viewW = 0;
+        cropObj.viewH = 0;
+        cropObj.scale = 0;
+        cropImage.src = src;
+        cropModal.classList.add('active');
+        applyCropViewSize(true);
+        updateCropUI();
+        if (corsBlocked) showToast('该网络图片不允许跨域处理，只能预览位置；请先保存到本地再上传');
+    }
+
+    function closeCrop() {
+        cropModal.classList.remove('active');
+        cropPointers.clear();
+        cropDrag = null;
+        cropPinch = null;
+        cropContainer.classList.remove('dragging');
+    }
+
+    function applyCrop() {
+        if (!cropObj.src) { showToast('请先选择一张图片'); return; }
+        if (cropObj.corsBlocked) {
+            showToast('该网络图片不允许跨域处理，请先保存到本地后再裁剪');
+            return;
+        }
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = CROP_W;
+        outCanvas.height = CROP_H;
+        const outCtx = outCanvas.getContext('2d');
+        const img = new Image();
+        if (!/^data:/i.test(cropObj.src)) img.crossOrigin = 'anonymous';
+        img.onload = function () {
+            // 屏幕上的裁剪框换算回原图像素坐标
+            const sx = -cropObj.offsetX / cropObj.scale;
+            const sy = -cropObj.offsetY / cropObj.scale;
+            const sw = cropObj.viewW / cropObj.scale;
+            const sh = cropObj.viewH / cropObj.scale;
+            outCtx.fillStyle = '#000000';
+            outCtx.fillRect(0, 0, CROP_W, CROP_H);
+            outCtx.drawImage(img, sx, sy, sw, sh, 0, 0, CROP_W, CROP_H);
+            let data = '';
+            try {
+                data = outCanvas.toDataURL('image/jpeg', 0.92);
+            } catch (err) {
+                showToast('图片处理失败：该图片可能存在跨域限制');
+                return;
+            }
+            state.imgSrc = data;
+            state.imgRef = cropObj.fileName || '';
+            syncImagePanel();
+            closeCrop();
+            showToast('角色形象已更新');
+        };
+        img.onerror = function () { showToast('图片处理失败，请重试'); };
+        img.src = cropObj.src;
+    }
+
+    // 指针交互：单指/鼠标拖动平移，双指捏合缩放
+    const cropPointers = new Map();
+    let cropDrag = null, cropPinch = null;
+
+    function trackCropPointer(e) {
+        const p = cropViewPoint(e.clientX, e.clientY);
+        cropPointers.set(e.pointerId, { x: p.x, y: p.y, clientX: e.clientX, clientY: e.clientY });
+    }
+
+    cropContainer.addEventListener('pointerdown', function (e) {
+        if (!cropObj.imgWidth) return;
+        e.preventDefault();
+        trackCropPointer(e);
+        if (cropContainer.setPointerCapture) {
+            try { cropContainer.setPointerCapture(e.pointerId); } catch (err) { }
+        }
+        if (cropPointers.size === 1) {
+            cropPinch = null;
+            cropDrag = {
+                id: e.pointerId,
+                clientX: e.clientX, clientY: e.clientY,
+                offsetX: cropObj.offsetX, offsetY: cropObj.offsetY
+            };
+            cropContainer.classList.add('dragging');
+        } else if (cropPointers.size === 2) {
+            cropDrag = null;
+            startCropPinch();
+        }
+    });
+
+    cropContainer.addEventListener('pointermove', function (e) {
+        if (!cropPointers.has(e.pointerId)) return;
+        trackCropPointer(e);
+        if (cropPinch && cropPointers.size >= 2) {
+            e.preventDefault();
+            updateCropPinch();
+            return;
+        }
+        if (cropDrag && cropDrag.id === e.pointerId) {
+            e.preventDefault();
+            cropObj.offsetX = cropDrag.offsetX + (e.clientX - cropDrag.clientX);
+            cropObj.offsetY = cropDrag.offsetY + (e.clientY - cropDrag.clientY);
+            clampCropOffsets();
+            syncCropImageStyle();
+            drawCropPreview();
+        }
+    });
+
+    function endCropPointer(e) {
+        if (!cropPointers.has(e.pointerId)) return;
+        cropPointers.delete(e.pointerId);
+        if (cropDrag && cropDrag.id === e.pointerId) {
+            cropDrag = null;
+            cropContainer.classList.remove('dragging');
+        }
+        if (cropPointers.size < 2) cropPinch = null;
+        if (cropPointers.size === 1) {
+            // 双指抬起一指后继续单指拖动
+            const rest = cropPointers.entries().next().value;
+            cropDrag = {
+                id: rest[0],
+                clientX: rest[1].clientX, clientY: rest[1].clientY,
+                offsetX: cropObj.offsetX, offsetY: cropObj.offsetY
+            };
+            cropContainer.classList.add('dragging');
+        }
+        if (cropContainer.releasePointerCapture) {
+            try { cropContainer.releasePointerCapture(e.pointerId); } catch (err) { }
+        }
+    }
+    cropContainer.addEventListener('pointerup', endCropPointer);
+    cropContainer.addEventListener('pointercancel', endCropPointer);
+
+    function startCropPinch() {
+        const pts = Array.from(cropPointers.values()).slice(0, 2);
+        if (pts.length < 2 || !cropObj.imgWidth) return;
+        cropPinch = {
+            distance: Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)),
+            scale: cropObj.scale,
+            offsetX: cropObj.offsetX,
+            offsetY: cropObj.offsetY,
+            centerX: (pts[0].x + pts[1].x) / 2,
+            centerY: (pts[0].y + pts[1].y) / 2
+        };
+        cropContainer.classList.add('dragging');
+    }
+
+    function updateCropPinch() {
+        const pts = Array.from(cropPointers.values()).slice(0, 2);
+        if (!cropPinch || pts.length < 2) return;
+        const distance = Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y));
+        const centerX = (pts[0].x + pts[1].x) / 2;
+        const centerY = (pts[0].y + pts[1].y) / 2;
+        const nextScale = clampCropScale(cropPinch.scale * (distance / cropPinch.distance));
+        const srcX = (cropPinch.centerX - cropPinch.offsetX) / cropPinch.scale;
+        const srcY = (cropPinch.centerY - cropPinch.offsetY) / cropPinch.scale;
+        cropObj.scale = nextScale;
+        cropObj.offsetX = centerX - srcX * nextScale;
+        cropObj.offsetY = centerY - srcY * nextScale;
+        clampCropOffsets();
+        syncCropImageStyle();
+        updateCropUI();
+    }
+
+    // 滚轮缩放（以光标位置为锚点）
+    cropContainer.addEventListener('wheel', function (e) {
+        if (!cropObj.imgWidth) return;
+        e.preventDefault();
+        const p = cropViewPoint(e.clientX, e.clientY);
+        const factor = Math.max(0.8, Math.min(1.25, Math.exp(-e.deltaY * 0.0015)));
+        zoomCropBy(factor, p.x, p.y);
+    }, { passive: false });
+
+    // 双击：放大 / 还原
+    cropContainer.addEventListener('dblclick', function (e) {
+        if (!cropObj.imgWidth) return;
+        const p = cropViewPoint(e.clientX, e.clientY);
+        if (cropObj.scale > cropObj.fitScale * 1.05) zoomCropTo(cropObj.fitScale, p.x, p.y);
+        else zoomCropTo(cropObj.fitScale * 2, p.x, p.y);
+    });
+
+    // 工具条：缩放滑块 / 加减 / 复位
+    (function bindCropControls() {
+        const zoomIn = document.getElementById('cropZoomInBtn');
+        const zoomOut = document.getElementById('cropZoomOutBtn');
+        const resetBtn = document.getElementById('cropResetBtn');
+        const slider = document.getElementById('cropZoomSlider');
+        if (zoomIn) zoomIn.addEventListener('click', function () { zoomCropBy(1.2); });
+        if (zoomOut) zoomOut.addEventListener('click', function () { zoomCropBy(1 / 1.2); });
+        if (resetBtn) resetBtn.addEventListener('click', resetCropView);
+        if (slider) slider.addEventListener('input', function () {
+            const pct = parseFloat(this.value);
+            zoomCropTo(cropObj.fitScale * ((isNaN(pct) ? 100 : pct) / 100));
+        });
+    })();
+
+    // 窗口尺寸 / 屏幕方向变化时重新适配（保持当前构图）
+    window.addEventListener('resize', function () {
+        if (!cropModal.classList.contains('active')) return;
+        applyCropViewSize(false);
+        updateCropUI();
+    });
+
+    if (cropImage) cropImage.addEventListener('load', drawCropPreview);
+
+    // ---------- 事件绑定 ----------
+    const imagePanel = document.getElementById('imagePanel');
+    if (imagePanel) imagePanel.addEventListener('click', openImageSourceModal);
+
+    const exportBtn = document.getElementById('exportImageBtn');
+    if (exportBtn) exportBtn.addEventListener('click', exportPanelImage);
+
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+
+    const themeBtn = document.getElementById('themeBtn');
+    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+
+    // 快捷键：Esc 关闭弹窗，Ctrl / ⌘ + S 保存设置
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            if (cropModal.classList.contains('active')) { closeCrop(); e.preventDefault(); }
+            else if (imageSourceModal.classList.contains('active')) { closeImageSourceModal(); e.preventDefault(); }
+            else if (settingsModal.classList.contains('active')) { closeSettings(); e.preventDefault(); }
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+            if (settingsModal.classList.contains('active')) {
+                e.preventDefault();
+                saveSettings();
+            }
+        }
+    });
+
+    // 直接把剪贴板里的图片粘贴进来裁剪
+    document.addEventListener('paste', function (e) {
+        if (!e.clipboardData || !e.clipboardData.items) return;
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].kind !== 'file' || !/^image\//i.test(items[i].type || '')) continue;
+            const file = items[i].getAsFile();
+            if (!file) continue;
+            e.preventDefault();
+            const reader = new FileReader();
+            reader.onload = function (ev) {
+                openCropWithSource(String(ev.target.result || ''), file.name || '剪贴板图片');
+            };
+            reader.readAsDataURL(file);
+            return;
+        }
+    });
+
+    if (jsonInput) {
+        jsonInput.addEventListener('change', function (e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                importJsonText(String(event.target.result || ''), file.name);
+            };
+            reader.onerror = function () { showToast('读取 JSON 文件失败'); };
+            reader.readAsText(file);
+            jsonInput.value = '';
+        });
+    }
+
+    // 长按标题：显示 / 隐藏设置按钮
+    let pressTimer = null;
+    function startPress() {
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(function () {
+            state.settingsVisible = !state.settingsVisible;
+            redraw();
+            showToast(state.settingsVisible ? '已显示设置按钮' : '已隐藏设置按钮');
+        }, 600);
+    }
+    function cancelPress() { clearTimeout(pressTimer); }
+
+    if (titleBox) {
+        titleBox.addEventListener('mousedown', startPress);
+        titleBox.addEventListener('touchstart', startPress);
+        titleBox.addEventListener('mouseup', cancelPress);
+        titleBox.addEventListener('mouseleave', cancelPress);
+        titleBox.addEventListener('touchend', cancelPress);
+        titleBox.addEventListener('touchcancel', cancelPress);
+    }
+
+    // ---------- 初始化 ----------
+    syncImagePanel();
+    renderPresetOptions();
+    redraw();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
