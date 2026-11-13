@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>哈基蒋望景记</title>
+<style>
+  html,body{margin:0;padding:0;background:#111;overflow:hidden;height:100%;}
+  #wrap{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;}
+  canvas{display:block;max-width:100%;max-height:100%;background:#000;touch-action:none;cursor:default;}
+  #hint{position:absolute;top:10px;left:0;right:0;text-align:center;color:#ccc;font:13px/1.5 system-ui,sans-serif;pointer-events:none;}
+
+  #ui{position:absolute;left:0;right:0;bottom:0;display:none;justify-content:space-between;padding:12px;pointer-events:none;}
+  .pad{display:flex;gap:12px;pointer-events:auto;}
+  .btn{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.5);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none;}
+  .btn:active{background:rgba(255,255,255,.4);}
+
+  #desktopBar{position:absolute;left:0;right:0;bottom:0;padding:10px 16px;display:none;justify-content:space-between;align-items:center;color:#ccc;font:13px/1.4 system-ui,sans-serif;pointer-events:none;}
+  #desktopBar .keys{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  #desktopBar kbd{display:inline-block;min-width:22px;padding:2px 6px;border:1px solid #666;border-bottom-width:2px;border-radius:4px;background:#222;color:#eee;font:12px/1.2 ui-monospace,monospace;text-align:center;}
+  #desktopBar .actions{pointer-events:auto;display:flex;gap:10px;}
+  #desktopBar button{background:#222;color:#ddd;border:1px solid #555;border-radius:6px;padding:6px 14px;font:13px system-ui;cursor:pointer;}
+  #desktopBar button:hover{background:#333;border-color:#888;}
+
+  @media (max-width:640px){
+    #desktopBar{padding:8px 10px;font-size:12px;}
+    #desktopBar .keys{gap:10px;}
+    .btn{width:56px;height:56px;font-size:22px;}
+  }
+
+  #modal {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: none; justify-content: center; align-items: center;
+    flex-direction: column; color: #fff; font-family: system-ui;
+    z-index: 100;
+  }
+  #modal h2 { font-size: 32px; margin-bottom: 10px; color: #ff4a4a; }
+  #modal p { font-size: 18px; margin: 5px 0; color: #ccc; }
+  #modal button {
+    margin-top: 30px; padding: 10px 30px; font-size: 18px;
+    background: #333; color: #fff; border: 2px solid #777; border-radius: 8px;
+    cursor: pointer; transition: background 0.2s;
+  }
+  #modal button:hover { background: #555; }
+
+  #jumpscare {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: transparent; display: none; justify-content: center; align-items: center;
+    z-index: 200; pointer-events: none;
+  }
+  #jumpscare img {
+    max-width: 80%; max-height: 80%; object-fit: contain;
+    animation: shake 0.15s infinite alternate;
+    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    border: 4px solid #fff;
+    background: #fff;
+  }
+  @keyframes shake {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(8px, -8px) scale(1.05); }
+  }
+
+  #startScreen {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: #111; display: flex; justify-content: center; align-items: center;
+    flex-direction: column; color: #fff; font-family: system-ui;
+    z-index: 300; transition: opacity 0.5s;
+  }
+  #startScreen h1 { font-size: 48px; margin-bottom: 10px; color: #fff; letter-spacing: 2px;}
+  #startScreen p { color: #888; margin-bottom: 40px; }
+  #startBtn {
+    padding: 15px 50px; font-size: 22px; font-weight: bold;
+    background: #cc3333; color: #fff; border: none; border-radius: 8px;
+    cursor: pointer; transition: all 0.2s; box-shadow: 0 0 20px rgba(204,51,51,0.4);
+  }
+  #startBtn:hover {
+    background: #ff4444; box-shadow: 0 0 30px rgba(255,68,68,0.6); transform: scale(1.05);
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="startScreen">
+    <h1>哈基蒋望景记_Beta</h1>
+    <p>一只 可爱的猫，与无穷无尽的望景。</p>
+    <button id="startBtn">开始循环</button>
+  </div>
+
+  <canvas id="game"></canvas>
+  <div id="hint">← → 移动 ｜ ↑/空格 跳 ｜ 目标：本层望景位</div>
+
+  <div id="ui">
+    <div class="pad">
+      <div class="btn" data-k="left">←</div>
+      <div class="btn" data-k="right">→</div>
+    </div>
+    <div class="pad">
+      <div class="btn" data-k="jump">↑</div>
+    </div>
+  </div>
+
+  <div id="desktopBar">
+    <div class="keys">
+      <span><kbd>←</kbd><kbd>→</kbd> 移动</span>
+      <span><kbd>↑</kbd>/<kbd>空格</kbd> 跳</span>
+      <span><kbd>P</kbd> 暂停</span>
+      <span><kbd>R</kbd> 重开</span>
+    </div>
+    <div class="actions">
+      <button id="btnRestart">重开</button>
+      <button id="btnPause">暂停</button>
+    </div>
+  </div>
+
+  <div id="modal">
+    <h2>SAN 值崩溃</h2>
+    <p id="modal-layer">你在第 1 层循环失去了理智</p>
+    <p id="modal-best">历史最高：第 1 层</p>
+    <p id="modal-coins">拾取的钱：0</p>
+    <button id="btnModalRestart">重新开始</button>
+  </div>
+
+  <div id="jumpscare">
+    <img id="jumpscareImg" style="display:none;" src="" alt="surprise">
+    <canvas id="jumpscareCanvas" width="400" height="400" style="display:none; max-width:80%; max-height:80%; background:#fff; border:4px solid #fff; border-radius:8px; box-shadow: 0 0 50px rgba(0,0,0,0.8); animation: shake 0.15s infinite alternate;"></canvas>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===================== 音频系统 =====================
+  // 使用 Web Audio API 合成音效，无需外部文件即可发声。
+  // 如果你有本地音频文件，可以在函数中取消注释并修改路径。
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  // 播放合成音效的通用函数
+  function playSound(type) {
+    if (!audioCtx) return;
+
+    // 示例：如果你想用外部音频，取消下面注释并准备对应文件
+    /*
+    if (type === 'jump') { new Audio('sounds/jump.mp3').play(); return; }
+    if (type === 'coin') { new Audio('sounds/coin.mp3').play(); return; }
+    // ... 以此类推
+    */
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const t = audioCtx.currentTime;
+
+    if (type === 'jump') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(600, t + 0.1);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      osc.start(t);
+      osc.stop(t + 0.1);
+    } 
+    else if (type === 'coin') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, t); // 高音 A5
+      osc.frequency.setValueAtTime(1046.50, t + 0.1); // 高音 C6
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+      osc.start(t);
+      osc.stop(t + 0.3);
+    } 
+    else if (type === 'hurt') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(50, t + 0.2);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    } 
+    else if (type === 'stamp') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(100, t);
+      osc.frequency.exponentialRampToValueAtTime(30, t + 0.3);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+      osc.start(t);
+      osc.stop(t + 0.3);
+    }
+    else if (type === 'jumpscare') {
+      // 突脸音效：非常刺耳
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1000, t);
+      osc.frequency.exponentialRampToValueAtTime(200, t + 0.5);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+      osc.start(t);
+      osc.stop(t + 0.5);
+    }
+  }
+  // ===================================================
+
+  const CONFIG = {
+    W: 960, H: 540,
+    groundY: 470,
+    catW: 64, catH: 64,
+    catSpeed: 220,
+    jumpVel: -620,
+    gravity: 1800,
+    
+    baseWorldW: 1400,
+    worldWInc: 300,
+    
+    sanMax: 100,
+    sanDamage: 38,
+    sanRecover: 20,
+    startX: 40,
+    
+    coverH: 80,
+    stoneW: 76, stoneH: 64,
+    wallW: 56, wallH: 64,
+    
+    bulletSpeed: 350,
+    bulletRadius: 12,
+    bulletExplodeDamage: 25,
+    
+    stonePulsePeriod: 2.5,
+    stonePulseDuration: 1.2,
+    
+    stampDamage: 30,
+    stampWarnTime: 0.8,
+  };
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.width = CONFIG.W;
+  canvas.height = CONFIG.H;
+
+  function resize() {
+    const wrap = document.getElementById('wrap');
+    const scale = Math.min(wrap.clientWidth / CONFIG.W, wrap.clientHeight / CONFIG.H);
+    canvas.style.width = CONFIG.W * scale + 'px';
+    canvas.style.height = CONFIG.H * scale + 'px';
+  }
+  window.addEventListener('resize', resize); resize();
+
+  // ===================== 本地图片加载 =====================
+  const images = {};
+  function loadImg(key, url) {
+    if (!url) { images[key] = null; return; }
+    const img = new Image();
+    img.onload = () => { images[key] = img; };
+    img.onerror = () => { images[key] = null; };
+    img.src = url;
+  }
+  
+  loadImg('cat', 'images/cat.png');
+  loadImg('coin', 'images/coin.png');
+
+  const jumpscareImgEl = document.getElementById('jumpscareImg');
+  const jumpscareCanvasEl = document.getElementById('jumpscareCanvas');
+  jumpscareImgEl.onload = () => {
+    jumpscareImgEl.style.display = 'block';
+    jumpscareCanvasEl.style.display = 'none';
+  };
+  jumpscareImgEl.onerror = () => {
+    jumpscareImgEl.style.display = 'none';
+    jumpscareCanvasEl.style.display = 'block';
+    drawFallbackJumpscare();
+  };
+  jumpscareImgEl.src = 'jumpscare.jpg';
+
+  function drawFallbackJumpscare() {
+    const c = jumpscareCanvasEl;
+    const cctx = c.getContext('2d');
+    cctx.fillStyle = '#fff';
+    cctx.fillRect(0, 0, c.width, c.height);
+    
+    cctx.fillStyle = '#000';
+    cctx.beginPath(); cctx.arc(200, 200, 150, 0, Math.PI*2); cctx.fill();
+    
+    cctx.fillStyle = '#fff';
+    cctx.beginPath(); cctx.arc(130, 160, 45, 0, Math.PI*2); cctx.fill();
+    cctx.beginPath(); cctx.arc(270, 160, 45, 0, Math.PI*2); cctx.fill();
+    
+    cctx.fillStyle = '#000';
+    cctx.beginPath(); cctx.arc(130, 160, 10, 0, Math.PI*2); cctx.fill();
+    cctx.beginPath(); cctx.arc(270, 160, 10, 0, Math.PI*2); cctx.fill();
+    
+    cctx.fillStyle = '#cc3333';
+    cctx.beginPath();
+    cctx.moveTo(100, 280);
+    cctx.quadraticCurveTo(200, 380, 300, 280);
+    cctx.quadraticCurveTo(200, 320, 100, 280);
+    cctx.fill();
+    
+    cctx.strokeStyle = '#fff'; cctx.lineWidth = 6;
+    cctx.beginPath(); cctx.moveTo(100, 140); cctx.lineTo(160, 140); cctx.stroke();
+    cctx.beginPath(); cctx.moveTo(240, 140); cctx.lineTo(300, 140); cctx.stroke();
+  }
+
+  // ===================== 输入与适配 =====================
+  const uiTouch = document.getElementById('ui');
+  const uiDesktop = document.getElementById('desktopBar');
+  const hintEl = document.getElementById('hint');
+  let currentMode = null;
+
+  function setMode(mode) {
+    if (mode === currentMode) return;
+    currentMode = mode;
+    if (mode === 'touch') {
+      uiTouch.style.display = 'flex';
+      uiDesktop.style.display = 'none';
+      hintEl.textContent = '目标：本层望景位 ｜ 触屏或键盘均可操作';
+    } else {
+      uiTouch.style.display = 'none';
+      uiDesktop.style.display = 'flex';
+      hintEl.textContent = '← → 移动 ｜ ↑/空格 跳 ｜ 目标：本层望景位';
+    }
+    resize();
+  }
+  setMode(window.matchMedia && window.matchMedia('(pointer:coarse)').matches ? 'touch' : 'desktop');
+
+  window.addEventListener('keydown', e => {
+    if (['Shift','Control','Alt','Meta'].includes(e.key)) return;
+    setMode('desktop');
+  }, true);
+  window.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') setMode('touch');
+    else if (e.pointerType === 'mouse') setMode('desktop');
+  }, true);
+
+  const keys = { left:false, right:false, jump:false };
+  const keyMap = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'jump', ' ':'jump', a:'left', d:'right', w:'jump' };
+  let paused = false;
+
+  window.addEventListener('keydown', e => {
+    const k = keyMap[e.key];
+    if (k) { keys[k] = true; e.preventDefault(); }
+    if (e.key === 'r' || e.key === 'R') resetGame();
+    if (e.key === 'p' || e.key === 'P') paused = !paused;
+  });
+  window.addEventListener('keyup', e => {
+    const k = keyMap[e.key];
+    if (k) { keys[k] = false; e.preventDefault(); }
+  });
+
+  document.querySelectorAll('.btn').forEach(btn => {
+    const k = btn.dataset.k;
+    const on = e => { e.preventDefault(); keys[k] = true; };
+    const off = e => { e.preventDefault(); keys[k] = false; };
+    btn.addEventListener('touchstart', on, {passive:false});
+    btn.addEventListener('touchend', off, {passive:false});
+    btn.addEventListener('touchcancel', off, {passive:false});
+    btn.addEventListener('mousedown', on);
+    btn.addEventListener('mouseup', off);
+    btn.addEventListener('mouseleave', off);
+  });
+
+  document.getElementById('btnRestart').addEventListener('click', () => { resetGame(); paused = false; });
+  document.getElementById('btnPause').addEventListener('click', () => { paused = !paused; });
+  window.addEventListener('blur', () => { if (state === 'play') paused = true; });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  // ===================== 颜色 =====================
+  const COLOR_BASE = { 
+    skyTop:[217,217,217], skyBottom:[143,143,143], 
+    groundTop:[90,90,90], groundBot:[43,43,43], 
+    ui:[255,255,255], accent:[187,187,187], wave:[255,255,255],
+    sun:[255,255,255], cloud:[255,255,255]
+  };
+  const COLOR_RED  = { 
+    skyTop:[138,58,58], skyBottom:[74,18,18], 
+    groundTop:[58,20,20], groundBot:[26,8,8], 
+    ui:[255,106,106], accent:[204,68,68], wave:[255,90,90],
+    sun:[255,110,90], cloud:[200,80,80]
+  };
+  let redT = 0;
+  function lerpColor(a, b, t) { return [ Math.round(a[0]+(b[0]-a[0])*t), Math.round(a[1]+(b[1]-a[1])*t), Math.round(a[2]+(b[2]-a[2])*t) ]; }
+  function rgb(c){ return `rgb(${c[0]},${c[1]},${c[2]})`; }
+  function rgba(c, a){ return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+  function colorAt(key, t){ return lerpColor(COLOR_BASE[key], COLOR_RED[key], t); }
+
+  const SCENERY = {
+    early: ['一片草坪。','一台仿石音响在播放广场舞。','风吹过，什么也没发生。','远处有一台音响，正在播放天气预报。'],
+    mid: ['同一片草坪，但音响多了一台。','风景里有一台音响正在看你。','你好像来过这里。','草坪上的石头，都在播放同一首歌。'],
+    deep: ['风景是一台音响在看风景。','草坪上摆满了望景位，但没有猫。','太阳没有落，它只是变红了。','你听见自己在第 3 层叫过。'],
+    meta: ['你确定这是第 N 层，还是第 1 层？','风景已记录。风景已记录。风景已记录。','猫坐下的时候，音响也在循环。','望景位在看你。']
+  };
+  function sceneryFor(layer) {
+    let pool = SCENERY.early;
+    if (layer > 3 && layer <= 6) pool = SCENERY.mid;
+    else if (layer > 6 && layer <= 10) pool = SCENERY.deep;
+    else if (layer > 10) pool = SCENERY.meta;
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  // ===================== 游戏状态 =====================
+  let cat, san, time, state, camX;
+  let layer = 1, layerWorldW = CONFIG.baseWorldW, layerSeat = null;
+  let layerSpeakers = [], layerCovers = [], layerCoins = [];
+  let currentScenery = '';
+  let transition = { active: false, phase: 'none', t: 0, camFrom: 0, camTo: 0 };
+  let currentSanDrain = 0;
+  let currentBullets = []; 
+  let coinCount = 0;
+  
+  let stampObstacle = null; 
+  
+  let jumpscareActive = false;
+  let jumpscareTimer = 0;
+  const jumpscareEl = document.getElementById('jumpscare');
+
+  let bestLayer = parseInt(localStorage.getItem('cat_audio_best') || '1');
+  const modal = document.getElementById('modal');
+  const modalLayer = document.getElementById('modal-layer');
+  const modalBest = document.getElementById('modal-best');
+  const modalCoins = document.getElementById('modal-coins');
+
+  state = 'waiting';
+
+  function resetGame() {
+    layer = 1;
+    coinCount = 0;
+    generateLayer(layer);
+    cat = { x: CONFIG.startX, y: CONFIG.groundY - CONFIG.catH, vx: 0, vy: 0, onGround: true, facing: 1, wobble: 0 };
+    san = CONFIG.sanMax; 
+    time = 0; state = 'play'; camX = 0;
+    transition = { active:false, phase:'none', t:0, camFrom:0, camTo:0 };
+    currentScenery = '';
+    currentBullets = [];
+    stampObstacle = null;
+    paused = false;
+    modal.style.display = 'none';
+    jumpscareEl.style.display = 'none';
+    jumpscareActive = false;
+  }
+
+  function triggerGameOver() {
+    state = 'gameover';
+    if (layer > bestLayer) {
+      bestLayer = layer;
+      localStorage.setItem('cat_audio_best', bestLayer);
+    }
+    modalLayer.textContent = '你在第 ' + layer + ' 层循环失去了理智';
+    modalBest.textContent = '历史最高：第 ' + bestLayer + ' 层';
+    modalCoins.textContent = '拾取的钱：' + coinCount;
+    modal.style.display = 'flex';
+    playSound('hurt');
+  }
+
+  document.getElementById('btnModalRestart').addEventListener('click', resetGame);
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    initAudio(); // 启动时初始化音频上下文
+    document.getElementById('startScreen').style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById('startScreen').style.display = 'none';
+      resetGame();
+    }, 500);
+  });
+
+  function triggerJumpscare() {
+    if (jumpscareActive) return;
+    jumpscareActive = true;
+    jumpscareTimer = 0.8;
+    jumpscareEl.style.display = 'flex';
+    san = Math.max(0, san - 15);
+    playSound('jumpscare');
+  }
+
+  function randRange(a, b){ return a + Math.random() * (b - a); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  // ===================== 关卡生成 =====================
+  function generateLayer(n) {
+    const len = CONFIG.baseWorldW + (n-1) * CONFIG.worldWInc;
+    layerWorldW = len;
+    redT = Math.min(1, (n-1) / 12);
+
+    const safeStart = Math.max(100, 200 - n * 10);
+    const safeEnd = Math.max(100, 200 - n * 10);
+    const playableLen = len - safeStart - safeEnd;
+
+    const diff = 1.0 + (n - 1) * 0.15;
+    let densitySpacing = Math.max(120, 300 - (n - 1) * 15); 
+    let totalSpeakers = Math.floor(playableLen / densitySpacing);
+    totalSpeakers = clamp(totalSpeakers, 1, 25);
+
+    let wallCount = Math.floor(totalSpeakers * 0.6);
+    let stoneCount = totalSpeakers - wallCount;
+    wallCount = Math.max(1, wallCount + Math.floor(Math.random() * 3) - 1);
+    stoneCount = Math.max(0, stoneCount + Math.floor(Math.random() * 3) - 1);
+
+    let coverCount = Math.max(1, Math.floor(totalSpeakers * 0.4));
+
+    layerSeat = { x: len - 110, y: CONFIG.groundY - 60, w: 70, h: 60 };
+    layerSpeakers = [];
+    layerCovers = [];
+    layerCoins = [];
+    currentBullets = [];
+    stampObstacle = null;
+
+    const minGap = Math.max(40, 120 - (n - 1) * 8);
+    
+    for (let i = 0; i < coverCount; i++) {
+      let tries = 0, x = 0, ok = false;
+      const w = 80 + Math.random() * 40;
+      while (tries++ < 80) {
+        x = randRange(safeStart + 50, len - safeEnd - 150);
+        let overlap = false;
+        for (const c of layerCovers) {
+          if (x + w > c.x - 60 && x < c.x + c.w + 60) { overlap = true; break; }
+        }
+        if (!overlap) { ok = true; break; }
+      }
+      if (!ok) continue;
+      layerCovers.push({ x, w, h: CONFIG.coverH, broken: false });
+    }
+    layerCovers.sort((a, b) => a.x - b.x);
+
+    function isValidPos(x, r) {
+      if (x - r < safeStart) return false;
+      if (x + r > len - safeEnd) return false;
+      for (const c of layerCovers) {
+        if (x + r > c.x - 20 && x - r < c.x + c.w + 20) return false;
+      }
+      for (const s of layerSpeakers) { if (Math.abs(s.x - x) < minGap) return false; }
+      return true;
+    }
+
+    for (let i = 0; i < wallCount; i++) {
+      let tries = 0, x = 0, ok = false;
+      const r = 120 + diff * 15;
+      const period = Math.max(1.6, 3.5 - diff * 0.25);
+      while (tries++ < 80) { 
+        x = randRange(safeStart, len - safeEnd); 
+        if (isValidPos(x, r * 0.5)) { ok = true; break; } 
+      }
+      if (!ok) continue;
+      
+      layerSpeakers.push({ 
+        type: 'wall', x, y: 140, r, period, 
+        phase: Math.random() * period,
+        timer: Math.random() * period,
+        w: CONFIG.wallW, h: CONFIG.wallH
+      });
+    }
+
+    for (let i = 0; i < stoneCount; i++) {
+      let tries = 0, x = 0, ok = false;
+      const r = 100 + diff * 12;
+      while (tries++ < 80) { 
+        x = randRange(safeStart, len - safeEnd); 
+        if (isValidPos(x, r * 0.5)) { ok = true; break; } 
+      }
+      if (!ok) continue;
+      layerSpeakers.push({ 
+        type: 'stone', x, y: CONFIG.groundY - 32, r, 
+        phase: Math.random() * Math.PI * 2,
+        w: CONFIG.stoneW, h: CONFIG.stoneH,
+        pulseTimer: Math.random() * CONFIG.stonePulsePeriod,
+        pulseActive: false,
+        pulseLife: 0,
+        pulseR: 0,
+        pulseAlpha: 0
+      });
+    }
+
+    const coinCountGen = Math.floor(totalSpeakers * 0.6) + 1;
+    for (let i = 0; i < coinCountGen; i++) {
+      let tries = 0, x = 0, ok = false;
+      while (tries++ < 80) {
+        x = randRange(safeStart + 50, len - safeEnd - 50);
+        let overlap = false;
+        for (const c of layerCovers) {
+          if (x > c.x - 40 && x < c.x + c.w + 40) { overlap = true; break; }
+        }
+        for (const s of layerSpeakers) {
+          if (Math.abs(x - s.x) < 60) { overlap = true; break; }
+        }
+        if (!overlap) { ok = true; break; }
+      }
+      if (!ok) continue;
+      const yOffset = randRange(60, 120);
+      layerCoins.push({ x, y: CONFIG.groundY - yOffset, collected: false });
+    }
+
+    layerSpeakers.sort((a, b) => a.x - b.x);
+    currentSanDrain = n >= 5 ? 0.5 + (n - 5) * 0.15 : 0;
+  }
+
+  // ===================== 碰撞与判定 =====================
+  function inCircle(px, py, cx, cy, r){ return (px-cx)**2 + (py-cy)**2 <= r*r; }
+
+  function getActiveHitboxes() {
+    const hitboxes = [];
+    for (const s of layerSpeakers) {
+      if (s.type === 'stone' && s.pulseActive) {
+        hitboxes.push({ cx: s.x, cy: s.y, r: s.pulseR, type: 'pulse', alpha: s.pulseAlpha });
+      }
+    }
+    return hitboxes;
+  }
+
+  function getCollisionBoxes() {
+    const boxes = [];
+    for (const c of layerCovers) {
+      if (!c.broken) {
+        boxes.push({ x: c.x, y: CONFIG.groundY - c.h, w: c.w, h: c.h, isCover: true, ref: c });
+      }
+    }
+    for (const s of layerSpeakers) {
+      if (s.type === 'stone') {
+        boxes.push({ x: s.x - s.w/2, y: s.y - s.h/2, w: s.w, h: s.h, isCover: false });
+      } else {
+        boxes.push({ x: s.x - s.w/2, y: s.y - s.h/2, w: s.w, h: s.h, isCover: false });
+      }
+    }
+    return boxes;
+  }
+
+  function update(dt) {
+    if (state === 'waiting') return;
+    if (state === 'transition') { updateTransition(dt); return; }
+    if (state === 'gameover') return;
+
+    if (paused) return;
+    
+    if (jumpscareActive) {
+      jumpscareTimer -= dt;
+      if (jumpscareTimer <= 0) {
+        jumpscareActive = false;
+        jumpscareEl.style.display = 'none';
+      }
+      return; 
+    }
+
+    time += dt;
+
+    if (layer >= 5) {
+      if (!stampObstacle) {
+        if (Math.random() < 0.15 * dt * 60) {
+          const fallX = clamp(cat.x + randRange(-100, 100), 50, layerWorldW - 100);
+          stampObstacle = {
+            x: fallX,
+            w: 80,
+            timer: CONFIG.stampWarnTime,
+            state: 'warn',
+            y: -100,
+          };
+        }
+      } else {
+        stampObstacle.timer -= dt;
+        
+        if (stampObstacle.state === 'warn') {
+          if (stampObstacle.timer <= 0) {
+            stampObstacle.state = 'drop';
+            stampObstacle.y = -100;
+          }
+        } else if (stampObstacle.state === 'drop') {
+          stampObstacle.y += 3000 * dt; 
+          if (stampObstacle.y >= CONFIG.groundY - 80) {
+            stampObstacle.y = CONFIG.groundY - 80;
+            stampObstacle.state = 'impact';
+            stampObstacle.timer = 0.5;
+            playSound('stamp'); // 播放砸地音效
+            
+            if (cat.x + CONFIG.catW > stampObstacle.x && cat.x < stampObstacle.x + stampObstacle.w) {
+              san -= CONFIG.stampDamage; 
+              camX += randRange(-15, 15);
+            }
+          }
+        } else if (stampObstacle.state === 'impact') {
+          if (stampObstacle.timer <= 0) {
+            stampObstacle = null; 
+          }
+        }
+      }
+    }
+
+    let ax = 0;
+    if (keys.left) ax -= 1;
+    if (keys.right) ax += 1;
+    if (ax !== 0) cat.facing = ax;
+    cat.vx = ax * CONFIG.catSpeed;
+    
+    let newX = cat.x + cat.vx * dt;
+    const catH = CONFIG.catH;
+    
+    for (const box of getCollisionBoxes()) {
+      if (newX + CONFIG.catW > box.x && newX < box.x + box.w &&
+          cat.y + catH > box.y && cat.y < box.y + box.h) {
+        if (cat.vx > 0) newX = box.x - CONFIG.catW;
+        if (cat.vx < 0) newX = box.x + box.w;
+      }
+    }
+    cat.x = newX;
+
+    if (keys.jump && cat.onGround) {
+      cat.vy = CONFIG.jumpVel;
+      cat.onGround = false;
+      playSound('jump'); // 跳跃音效
+    }
+    cat.vy += CONFIG.gravity * dt;
+    cat.y += cat.vy * dt;
+
+    let landed = false;
+    let landedOnCover = null;
+
+    for (const box of getCollisionBoxes()) {
+      if (cat.vy > 0 && 
+          cat.x + CONFIG.catW > box.x && cat.x < box.x + box.w &&
+          cat.y + catH > box.y && cat.y + catH < box.y + 30) {
+        cat.y = box.y - catH;
+        cat.vy = 0;
+        cat.onGround = true;
+        landed = true;
+        if (box.isCover) landedOnCover = box.ref;
+        break;
+      }
+    }
+
+    if (!landed && cat.y + catH >= CONFIG.groundY) {
+      cat.y = CONFIG.groundY - catH;
+      cat.vy = 0;
+      cat.onGround = true;
+      landed = true;
+    }
+
+    if (!landed) cat.onGround = false;
+
+    if (landedOnCover && !landedOnCover.broken) {
+      if (Math.random() < 0.05) { 
+        landedOnCover.broken = true;
+        triggerJumpscare(); 
+      }
+    }
+
+    cat.x = clamp(cat.x, 0, layerWorldW - CONFIG.catW);
+    if (ax !== 0 && cat.onGround) cat.wobble = Math.sin(time * 14) * 0.1;
+    else cat.wobble = 0;
+
+    const followTarget = clamp(cat.x - CONFIG.W * 0.35, 0, layerWorldW - CONFIG.W);
+    camX += (followTarget - camX) * Math.min(1, dt * 6);
+
+    const catCenterX = cat.x + CONFIG.catW / 2;
+    const catCenterY = cat.y + catH / 2;
+    
+    for (const c of layerCoins) {
+      if (c.collected) continue;
+      if (catCenterX + 20 > c.x && catCenterX - 20 < c.x &&
+          catCenterY + 20 > c.y && catCenterY - 20 < c.y) {
+        c.collected = true;
+        coinCount += 1;
+        playSound('coin'); // 吃钱音效
+      }
+    }
+
+    for (let i = currentBullets.length - 1; i >= 0; i--) {
+      const b = currentBullets[i];
+      b.age += dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      
+      if (inCircle(catCenterX, catCenterY, b.x, b.y, b.r + CONFIG.catW / 2.5)) {
+        san -= CONFIG.bulletExplodeDamage;
+        currentBullets.splice(i, 1);
+        continue;
+      }
+      
+      if (b.age > b.maxAge || b.x < -100 || b.x > layerWorldW + 100) {
+        currentBullets.splice(i, 1);
+      }
+    }
+    
+    for (const s of layerSpeakers) {
+      if (s.type === 'wall') {
+        s.timer -= dt;
+        if (s.timer <= 0) {
+          s.timer = s.period; 
+          const dx = catCenterX - s.x;
+          const dy = catCenterY - s.y;
+          const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+          const speed = CONFIG.bulletSpeed;
+          
+          currentBullets.push({ 
+            x: s.x, 
+            y: s.y, 
+            vx: (dx / dist) * speed, 
+            vy: (dy / dist) * speed, 
+            r: CONFIG.bulletRadius, 
+            age: 0, 
+            maxAge: 3.0 
+          });
+        }
+      }
+    }
+
+    for (const s of layerSpeakers) {
+      if (s.type === 'stone') {
+        s.pulseTimer -= dt;
+        
+        if (s.pulseActive) {
+          s.pulseLife += dt;
+          s.pulseR = s.r * (s.pulseLife / CONFIG.stonePulseDuration);
+          s.pulseAlpha = Math.max(0, 1 - s.pulseLife / CONFIG.stonePulseDuration);
+          
+          if (s.pulseLife >= CONFIG.stonePulseDuration) {
+            s.pulseActive = false;
+            s.pulseR = 0;
+            s.pulseAlpha = 0;
+          }
+        } else {
+          if (s.pulseTimer <= 0) {
+            s.pulseActive = true;
+            s.pulseTimer = CONFIG.stonePulsePeriod;
+            s.pulseLife = 0;
+            s.pulseR = 0;
+            s.pulseAlpha = 1;
+          }
+        }
+      }
+    }
+
+    let inNoise = false;
+    for (const h of getActiveHitboxes()) {
+      if (inCircle(catCenterX, catCenterY, h.cx, h.cy, h.r)) { inNoise = true; break; }
+    }
+
+    // 受到声波伤害时，增加一个短促的听觉反馈
+    if (inNoise) {
+      san -= CONFIG.sanDamage * dt;
+      // 为防止噪音刷屏，可以用一个简单的时间锁来限制播报频率
+      if (Math.random() < 0.05) playSound('hurt'); 
+    } else {
+      san += CONFIG.sanRecover * dt;
+    }
+    san -= currentSanDrain * dt;
+    san = clamp(san, 0, CONFIG.sanMax);
+
+    if (san <= 0) {
+      triggerGameOver();
+      return;
+    }
+
+    const vs = layerSeat;
+    if (cat.x + CONFIG.catW > vs.x && cat.x < vs.x + vs.w && cat.y + catH > vs.y && cat.y < vs.y + vs.h) startTransition();
+  }
+
+  function startTransition() {
+    state = 'transition';
+    currentScenery = sceneryFor(layer);
+    transition = { active: true, phase: 'camera', t: 0, camFrom: camX, camTo: clamp(layerSeat.x - CONFIG.W * 0.5, 0, layerWorldW - CONFIG.W) };
+  }
+
+  function updateTransition(dt) {
+    time += dt;
+    transition.t += dt;
+    if (transition.phase === 'camera') {
+      const k = Math.min(1, transition.t / 0.9), e = 1 - Math.pow(1-k, 3);
+      camX = transition.camFrom + (transition.camTo - transition.camFrom) * e;
+      if (k >= 1) { transition.phase = 'sunset'; transition.t = 0; }
+    } else if (transition.phase === 'sunset') {
+      if (transition.t >= 3.2) { transition.phase = 'blackout'; transition.t = 0; }
+    } else if (transition.phase === 'blackout') {
+      if (transition.t >= 1.4) {
+        layer++;
+        generateLayer(layer);
+        cat = { x: CONFIG.startX, y: CONFIG.groundY - CONFIG.catH, vx: 0, vy: 0, onGround: true, facing: 1, wobble: 0 };
+        san = CONFIG.sanMax; camX = 0; time = 0;
+        transition = { active:false, phase:'none', t:0, camFrom:0, camTo:0 };
+        state = 'play';
+      }
+    }
+  }
+
+  // ===================== 绘制 =====================
+  function drawNoise() {
+    ctx.save();
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.05 + redT * 0.15})`;
+    ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+    ctx.restore();
+  }
+
+  function sx(x) { return x - camX; }
+
+  function drawSkyGround() {
+    const g = ctx.createLinearGradient(0,0,0,CONFIG.groundY);
+    g.addColorStop(0, rgb(colorAt('skyTop', redT)));
+    g.addColorStop(1, rgb(colorAt('skyBottom', redT)));
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,CONFIG.W,CONFIG.groundY);
+
+    const g2 = ctx.createLinearGradient(0,CONFIG.groundY,0,CONFIG.H);
+    g2.addColorStop(0, rgb(colorAt('groundTop', redT)));
+    g2.addColorStop(1, rgb(colorAt('groundBot', redT)));
+    ctx.fillStyle = g2;
+    ctx.fillRect(0,CONFIG.groundY,CONFIG.W,CONFIG.H-CONFIG.groundY);
+
+    ctx.strokeStyle = 'rgba(0,0,0,.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0,CONFIG.groundY); ctx.lineTo(CONFIG.W,CONFIG.groundY); ctx.stroke();
+
+    const mountainCount = Math.max(2, 6 - Math.floor(redT * 4));
+    ctx.fillStyle = rgba(lerpColor([120,120,120], [150,60,60], redT), 0.35 + redT * 0.15);
+    for (let i=0;i<mountainCount;i++){
+      const bx = ((i*420 - camX*0.3) % (CONFIG.W + 600)) - 300;
+      ctx.beginPath();
+      ctx.moveTo(bx, CONFIG.groundY);
+      ctx.lineTo(bx+180, CONFIG.groundY-140);
+      ctx.lineTo(bx+360, CONFIG.groundY);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawCovers() {
+    for (const c of layerCovers) {
+      const x = sx(c.x);
+      if (x + c.w < -100 || x > CONFIG.W + 100) continue;
+      
+      if (c.broken) {
+        ctx.fillStyle = '#5a5a5a';
+        ctx.beginPath(); ctx.arc(x + c.w/3, CONFIG.groundY - 10, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#4a4a4a';
+        ctx.beginPath(); ctx.arc(x + c.w*0.7, CONFIG.groundY - 6, 6, 0, Math.PI*2); ctx.fill();
+        continue;
+      }
+
+      const centerX = x + c.w/2;
+      const centerY = CONFIG.groundY - c.h/2;
+      const radius = c.w / 2;
+
+      ctx.fillStyle = '#6a6a6a';
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
+      ctx.fill();
+
+      const grad = ctx.createRadialGradient(centerX - radius*0.3, centerY - radius*0.3, radius*0.1, centerX, centerY, radius);
+      grad.addColorStop(0, 'rgba(255,255,255,0.2)');
+      grad.addColorStop(0.6, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.4)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, CONFIG.groundY - c.h, c.w, c.h);
+    }
+  }
+
+  function drawCoins() {
+    for (const c of layerCoins) {
+      if (c.collected) continue;
+      const x = sx(c.x);
+      if (x < -50 || x > CONFIG.W + 50) continue;
+
+      if (images.coin) {
+        ctx.drawImage(images.coin, x - 16, c.y - 16, 32, 32);
+      } else {
+        ctx.save();
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(x, c.y, 16, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#d4ac0d';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, c.y, 12, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.fillStyle = '#d4ac0d';
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('$', x, c.y + 1);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.restore();
+      }
+
+      const glow = 0.5 + Math.sin(time * 5 + c.x) * 0.5;
+      ctx.fillStyle = `rgba(241, 196, 15, ${glow * 0.2})`;
+      ctx.beginPath();
+      ctx.arc(x, c.y, 24, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawSpeaker(s) {
+    const x = sx(s.x);
+    if (x < -160 || x > CONFIG.W + 160) return;
+    
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - s.w/2, s.y - s.h/2, s.w, s.h);
+
+    if (s.type === 'wall') {
+      ctx.fillStyle = '#b0b0b0';
+      ctx.beginPath();
+      ctx.moveTo(x - 20, s.y - 30);
+      ctx.lineTo(x + 20, s.y - 30);
+      ctx.lineTo(x + 25, s.y + 30);
+      ctx.lineTo(x - 15, s.y + 30);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#e8e8e8';
+      ctx.beginPath();
+      ctx.moveTo(x - 25, s.y - 35);
+      ctx.lineTo(x + 15, s.y - 35);
+      ctx.lineTo(x + 20, s.y + 25);
+      ctx.lineTo(x - 20, s.y + 25);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#666';
+      ctx.beginPath();
+      ctx.moveTo(x - 15, s.y - 25);
+      ctx.lineTo(x + 8, s.y - 25);
+      ctx.lineTo(x + 12, s.y + 15);
+      ctx.lineTo(x - 11, s.y + 15);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#f0f0f0';
+      ctx.beginPath();
+      ctx.ellipse(x - 5, s.y - 30, 10, 6, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.ellipse(x - 5, s.y - 30, 5, 3, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(x - 5, s.y - 35); ctx.lineTo(x - 5, 0); ctx.stroke();
+    } else {
+      const w = s.w, h = s.h;
+      const cx = x, cy = CONFIG.groundY;
+      
+      ctx.fillStyle = '#72756c';
+      ctx.beginPath();
+      ctx.moveTo(cx - w*0.48, cy);
+      ctx.lineTo(cx - w*0.52, cy - h*0.35);
+      ctx.lineTo(cx - w*0.3, cy - h*0.9);
+      ctx.lineTo(cx + w*0.15, cy - h*0.98);
+      ctx.lineTo(cx + w*0.4, cy - h*0.7);
+      ctx.lineTo(cx + w*0.5, cy - h*0.2);
+      ctx.lineTo(cx + w*0.45, cy);
+      ctx.closePath();
+      ctx.fill();
+
+      const grad = ctx.createLinearGradient(cx, cy - h, cx, cy);
+      grad.addColorStop(0, 'rgba(255,255,255,0.15)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      const holes = [
+        {x: -0.1, y: -0.6, s: 1.2}, {x: 0.05, y: -0.55, s: 1}, 
+        {x: -0.2, y: -0.45, s: 0.8}, {x: -0.05, y: -0.4, s: 1.1}, 
+        {x: 0.1, y: -0.35, s: 0.9}, {x: -0.25, y: -0.3, s: 0.7}, 
+        {x: -0.15, y: -0.2, s: 1}, {x: 0, y: -0.15, s: 0.8}, 
+        {x: 0.15, y: -0.2, s: 1.1}, {x: 0.25, y: -0.35, s: 0.6}
+      ];
+      
+      ctx.fillStyle = '#1c1c1c';
+      for (const hole of holes) {
+        const holeX = cx + hole.x * w;
+        const holeY = cy + hole.y * h;
+        
+        ctx.beginPath();
+        const hs = 4 * hole.s;
+        ctx.moveTo(holeX - hs, holeY);
+        ctx.lineTo(holeX - hs*0.5, holeY - hs);
+        ctx.lineTo(holeX + hs*0.5, holeY - hs*0.8);
+        ctx.lineTo(holeX + hs, holeY);
+        ctx.lineTo(holeX + hs*0.6, holeY + hs*0.8);
+        ctx.lineTo(holeX - hs*0.6, holeY + hs);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = 'rgba(100, 130, 80, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(cx - w*0.35, cy - h*0.15, 12, 8, 0.5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx + w*0.2, cy - h*0.8, 8, 5, -0.2, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawStampObstacle() {
+    if (!stampObstacle) return;
+    const x = sx(stampObstacle.x);
+    if (x + stampObstacle.w < -100 || x > CONFIG.W + 100) return;
+
+    if (stampObstacle.state === 'warn') {
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 50, 50, ${0.5 + Math.sin(time * 20) * 0.5})`;
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 10]);
+      ctx.strokeRect(x, CONFIG.groundY - 10, stampObstacle.w, 10);
+      
+      ctx.fillStyle = `rgba(255, 50, 50, ${0.8 + Math.sin(time * 20) * 0.2})`;
+      ctx.font = 'bold 24px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', x + stampObstacle.w / 2, CONFIG.groundY - 20);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    } else if (stampObstacle.state === 'drop') {
+      ctx.save();
+      const dropY = stampObstacle.y;
+      
+      ctx.fillStyle = '#cc2222';
+      ctx.beginPath();
+      ctx.rect(x + stampObstacle.w*0.3, dropY - 60, stampObstacle.w*0.4, 40);
+      ctx.rect(x, dropY, stampObstacle.w, 80);
+      ctx.fill();
+      
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(x, dropY + 70, stampObstacle.w, 10);
+      
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(x + 5, dropY + 5, stampObstacle.w - 10, 10);
+
+      ctx.restore();
+    } else if (stampObstacle.state === 'impact') {
+      ctx.save();
+      const alpha = stampObstacle.timer / 0.5;
+      ctx.fillStyle = `rgba(200, 20, 20, ${alpha * 0.6})`;
+      ctx.beginPath();
+      ctx.ellipse(x + stampObstacle.w/2, CONFIG.groundY - 10, stampObstacle.w/2 + (1 - alpha) * 100, 30 + (1-alpha)*30, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      for(let i=0; i<8; i++){
+        const px = x + stampObstacle.w/2 + randRange(-60, 60);
+        const py = CONFIG.groundY - 10 - randRange(0, 80) * alpha;
+        ctx.fillStyle = `rgba(200, 20, 20, ${alpha})`;
+        ctx.beginPath(); ctx.arc(px, py, randRange(2,6), 0, Math.PI*2); ctx.fill();
+      }
+      
+      ctx.fillStyle = `rgba(150, 10, 10, ${alpha * 0.3})`;
+      ctx.fillRect(x, CONFIG.groundY - 10, stampObstacle.w, 10);
+      
+      ctx.restore();
+    }
+  }
+
+  function drawHitboxes() {
+    const wc = colorAt('wave', redT);
+    
+    for (const b of currentBullets) {
+      const x = sx(b.x);
+      if (x + b.r < 0 || x - b.r > CONFIG.W) continue;
+      ctx.save();
+      ctx.fillStyle = rgba(wc, 0.2);
+      ctx.beginPath(); ctx.arc(x, b.y, b.r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = rgba(wc, 0.8);
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, b.y, b.r, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+    
+    for (const s of layerSpeakers) {
+      if (s.type === 'stone' && s.pulseActive) {
+        const x = sx(s.x);
+        if (x + s.pulseR < 0 || x - s.pulseR > CONFIG.W) continue;
+        ctx.save();
+        ctx.strokeStyle = rgba(wc, 0.5 * s.pulseAlpha);
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, s.y, s.pulseR, 0, Math.PI*2); ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawViewSeat() {
+    const v = layerSeat, x = sx(v.x);
+    if (x + v.w < -100 || x > CONFIG.W + 100) return;
+    ctx.fillStyle = '#4a4a4a';
+    ctx.fillRect(x, v.y+30, v.w, 10);
+    ctx.fillRect(x+6, v.y+40, 6, 20);
+    ctx.fillRect(x+v.w-12, v.y+40, 6, 20);
+    ctx.fillRect(x, v.y, 10, 40);
+    ctx.strokeStyle = rgb(colorAt('accent', redT)); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x-10, v.y+10); ctx.lineTo(x+v.w+10, v.y+10); ctx.stroke();
+    ctx.fillStyle = rgba(colorAt('ui', redT), 0.6);
+    ctx.font = '12px system-ui';
+    ctx.fillText('望景位', x+4, v.y-12);
+  }
+
+  function drawCat() {
+    const catH = CONFIG.catH;
+    const cw = CONFIG.catW, ch = CONFIG.catH;
+    const baseX = sx(cat.x);
+    
+    ctx.save();
+    const cx = baseX + cw/2, footY = cat.y + catH;
+    ctx.translate(cx, footY);
+    ctx.rotate(cat.wobble);
+    ctx.translate(-cw/2, -catH);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, cw, catH);
+
+    if (images.cat) {
+      ctx.drawImage(images.cat, 0, 0, cw, catH);
+    } else {
+      ctx.fillStyle = '#111';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+
+      ctx.beginPath(); ctx.ellipse(cw/2, ch*0.62, cw*0.3, ch*0.3, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cw*0.65, ch*0.35, ch*0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cw*0.55, ch*0.25); ctx.lineTo(cw*0.6, ch*0.05); ctx.lineTo(cw*0.7, ch*0.25); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(cw*0.7, ch*0.35, 4, 0, Math.PI*2); ctx.fill();
+    }
+    
+    ctx.restore();
+  }
+
+  function drawHUD() {
+    const uiC = colorAt('ui', redT);
+    
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(20, 16, 150, 26);
+    ctx.fillStyle = rgb(uiC);
+    ctx.font = '14px system-ui';
+    ctx.fillText('第 ' + layer + ' 层循环', 30, 34);
+
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(CONFIG.W - 120, 16, 100, 26);
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 16px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText('💰 ' + coinCount, CONFIG.W - 30, 35);
+    ctx.textAlign = 'left';
+
+    const x = 20, y = 56, w = 220, h = 16;
+    ctx.fillStyle = 'rgba(0,0,0,.5)';
+    ctx.fillRect(x, y, w, h);
+    const p = san / CONFIG.sanMax;
+    const barColor = lerpColor([220,50,50], [255,255,255], Math.pow(p, 2));
+    ctx.fillStyle = rgb(barColor);
+    ctx.fillRect(x, y, w * p, h);
+    ctx.strokeStyle = rgb(uiC); ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+    ctx.fillStyle = rgb(uiC); ctx.font = '12px system-ui';
+    ctx.fillText('SAN 值', x, y-5);
+
+    if (currentSanDrain > 0) {
+      ctx.fillStyle = rgba([255,80,80], 0.7 + Math.sin(time * 5) * 0.3);
+      ctx.font = '11px system-ui';
+      ctx.fillText('SAN 正在流失', x + w + 10, y + 13);
+    }
+  }
+
+  function drawPauseOverlay() {
+    ctx.fillStyle = 'rgba(0,0,0,.5)';
+    ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = '28px system-ui';
+    ctx.fillText('已暂停 · 按 P 或点「暂停」继续', CONFIG.W / 2, CONFIG.H / 2);
+    ctx.textAlign = 'left';
+  }
+
+  function drawTransition() {
+    const v = layerSeat;
+    const seatScreenX = v.x - camX;
+    const sunsetT = transition.phase === 'sunset' ? Math.min(1, transition.t / 3.2) : (transition.phase === 'blackout' ? 1 : 0);
+
+    const g = ctx.createLinearGradient(0,0,0,CONFIG.H);
+    g.addColorStop(0, rgb(lerpColor(colorAt('skyTop', redT), [30,10,10], sunsetT)));
+    g.addColorStop(0.6, rgb(lerpColor(colorAt('skyBottom', redT), [160,50,40], sunsetT)));
+    g.addColorStop(1, '#111');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
+
+    if (transition.phase !== 'camera') {
+      const sunY = CONFIG.H*0.62 - sunsetT * 120;
+      const sunColor = colorAt('sun', redT);
+      ctx.fillStyle = sunColor ? rgba(sunColor, 0.85) : 'rgba(255,255,255,0.85)';
+      ctx.beginPath(); ctx.arc(CONFIG.W/2, sunY, 70, 0, Math.PI*2); ctx.fill();
+
+      const cloudColor = colorAt('cloud', redT);
+      ctx.fillStyle = cloudColor ? rgba(cloudColor, 0.22) : 'rgba(255,255,255,0.22)';
+      for (let i=0;i<4;i++){
+        const cy = 120 + i*70 + Math.sin(time+i)*10;
+        const cx = CONFIG.W/2 - 270 + i*180;
+        ctx.beginPath(); ctx.ellipse(cx, cy, 80, 22, 0, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    if (transition.phase === 'camera') {
+      const vx = seatScreenX;
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(vx, v.y+30, v.w, 10);
+      ctx.fillRect(vx+6, v.y+40, 6, 20);
+      ctx.fillRect(vx+v.w-12, v.y+40, 6, 20);
+      ctx.fillRect(vx, v.y, 10, 40);
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(vx-10, v.y+10); ctx.lineTo(vx+v.w+10, v.y+10); ctx.stroke();
+      
+      ctx.fillStyle = '#111';
+      ctx.beginPath(); ctx.ellipse(vx+v.w/2, v.y+16, 26, 30, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(vx+v.w/2+12, v.y-6, 14, 0, Math.PI*2); ctx.fill();
+    }
+
+    drawNoise();
+
+    if (transition.phase === 'sunset' && transition.t > 1.2) {
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(CONFIG.W/2-240, CONFIG.H-120, 480, 70);
+      ctx.fillStyle = rgb(colorAt('ui', redT));
+      ctx.textAlign = 'center'; ctx.font = '18px system-ui';
+      ctx.fillText(currentScenery, CONFIG.W/2, CONFIG.H-80);
+      ctx.textAlign = 'left';
+    }
+
+    if (transition.phase === 'blackout') {
+      ctx.fillStyle = `rgba(0,0,0,${Math.min(1, transition.t / 0.6)})`;
+      ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
+      if (transition.t > 0.5) {
+        ctx.fillStyle = rgb(colorAt('ui', redT));
+        ctx.textAlign = 'center'; ctx.font = '22px system-ui';
+        ctx.fillText('第 ' + layer + ' 层循环 · 风景已记录', CONFIG.W/2, CONFIG.H/2);
+        ctx.font = '14px system-ui'; ctx.fillStyle = rgba(colorAt('ui', redT), 0.6);
+        ctx.fillText('进入下一层…', CONFIG.W/2, CONFIG.H/2 + 34);
+        ctx.textAlign = 'left';
+      }
+    }
+  }
+
+  // ===================== 主循环 =====================
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+
+    try {
+      if (!paused) update(dt);
+      
+      if (state === 'play' || state === 'gameover' || state === 'waiting') {
+        drawSkyGround();
+        drawCovers();
+        drawCoins(); 
+        drawStampObstacle();
+        for (const s of layerSpeakers) drawSpeaker(s);
+        drawHitboxes();
+        drawViewSeat();
+        drawNoise();
+        if(state !== 'waiting') drawCat();
+        drawHUD();
+        
+        if (paused) {
+          drawPauseOverlay();
+        }
+      } else if (state === 'transition') {
+        drawTransition();
+      }
+    } catch (err) {
+      console.error("渲染错误:", err);
+    }
+    
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
