@@ -1,1811 +1,1155 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>战力雷达面板</title>
-    <style>
-        :root {
-            --bg-color: #0b0e1a;
-            --panel-bg: #121828;
-            --title-bg: #1e2a44;
-            --text-main: #e0ecff;
-            --text-sub: #8f9bb5;
-            --grid-color: #2a3a5a;
-            --axis-color: #3a4a6a;
-            --border-color: #2a3a5a;
-            --primary: #4f9eff;
-            --danger: #ff7a7a;
-            --input-bg: #1e2a44;
-        }
-        [data-theme="light"] {
-            --bg-color: #f0f4f8;
-            --panel-bg: #ffffff;
-            --title-bg: #e0e8f0;
-            --text-main: #1a2a3a;
-            --text-sub: #6a7a8a;
-            --grid-color: #c0d0f0;
-            --axis-color: #a0b0d0;
-            --border-color: #c0d0f0;
-            --input-bg: #f0f4f8;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body {
-            background-color: var(--bg-color); color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; padding: 2vh 2vw; transition: background 0.3s;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>哈基蒋望景记</title>
+<style>
+  html,body{margin:0;padding:0;background:#111;overflow:hidden;height:100%;width:100%;}
+  #wrap{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  canvas{display:block;width:100%;height:100%;background:#000;touch-action:none;cursor:default;object-fit:cover;}
+  #hint{position:absolute;top:10px;left:0;right:0;text-align:center;color:#ccc;font:13px/1.5 system-ui,sans-serif;pointer-events:none;z-index:10;}
 
-        .app-container {
-            display: grid;
-            grid-template-columns: minmax(240px, 3fr) 7fr;
-            grid-template-rows: minmax(0, 5.3fr) minmax(0, 2fr);
-            gap: 2vh 2vw;
-            width: 100%; max-width: 1400px; height: 90vh;
-        }
+  #ui{position:absolute;left:0;right:0;bottom:0;display:none;justify-content:space-between;align-items:flex-end;padding:20px 30px 40px;pointer-events:none;z-index:10;}
+  .pad{display:flex;gap:20px;pointer-events:auto;}
+  .btn{width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none;backdrop-filter:blur(4px);}
+  .btn:active{background:rgba(255,255,255,.3);transform:scale(0.95);}
+  #joystick{position:relative;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.28);pointer-events:auto;touch-action:none;backdrop-filter:blur(4px);}
+  #joystick .knob{position:absolute;left:50%;top:50%;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5);transform:translate(-50%,-50%);transition:transform .06s linear;will-change:transform;}
 
-        .image-panel {
-            grid-column: 1; grid-row: 1;
-            width: 100%; height: 100%;
-            background: var(--panel-bg); border: 1px solid var(--border-color);
-            border-radius: 30px; overflow: hidden; position: relative;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: all 0.3s;
-        }
-        .image-panel img { width: 100%; height: 100%; object-fit: cover; display: none; }
-        .placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text-sub); }
+  #desktopBar{position:absolute;left:0;right:0;bottom:0;padding:10px 16px;display:none;justify-content:space-between;align-items:center;color:#ccc;font:13px/1.4 system-ui,sans-serif;pointer-events:none;z-index:10;}
+  #desktopBar .keys{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  #desktopBar kbd{display:inline-block;min-width:22px;padding:2px 6px;border:1px solid #666;border-bottom-width:2px;border-radius:4px;background:#222;color:#eee;font:12px/1.2 ui-monospace,monospace;text-align:center;}
+  #desktopBar .actions{pointer-events:auto;display:flex;gap:10px;}
+  #desktopBar button{background:#222;color:#ddd;border:1px solid #555;border-radius:6px;padding:6px 14px;font:13px system-ui;cursor:pointer;}
+  #desktopBar button:hover{background:#333;border-color:#888;}
 
-        .info-panel {
-            grid-column: 1; grid-row: 2;
-            width: 100%; height: 100%; padding: 15px;
-            background: var(--panel-bg); border: 1px solid var(--border-color);
-            border-radius: 30px; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; transition: all 0.3s;
-        }
-        .info-panel .name { font-size: clamp(18px, 2vw, 24px); font-weight: bold; color: var(--text-main); margin-bottom: 5px; }
-        .info-panel .desc { font-size: clamp(12px, 1.2vw, 14px); color: var(--text-sub); }
+  #modal {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: none; justify-content: center; align-items: center;
+    flex-direction: column; color: #fff; font-family: system-ui;
+    z-index: 100;
+  }
+  #modal h2 { font-size: 32px; margin-bottom: 10px; color: #ff4a4a; }
+  #modal p { font-size: 18px; margin: 5px 0; color: #ccc; }
+  #modal button {
+    margin-top: 30px; padding: 10px 30px; font-size: 18px;
+    background: #333; color: #fff; border: 2px solid #777; border-radius: 8px;
+    cursor: pointer; transition: background 0.2s;
+  }
+  #modal button:hover { background: #555; }
+  #modal .modal-actions { display: flex; gap: 14px; margin-top: 30px; }
+  #modal .modal-actions button { margin-top: 0; }
 
-        .right-panel {
-            grid-column: 2; grid-row: 1 / span 2;
-            background: var(--panel-bg); border-radius: 30px; padding: 2vh;
-            display: flex; flex-direction: column; transition: all 0.3s;
-            height: 100%; overflow: hidden; position: relative;
-        }
+  #jumpscare {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: transparent; display: none; justify-content: center; align-items: center;
+    z-index: 200; pointer-events: none;
+  }
+  #jumpscare img {
+    max-width: 80%; max-height: 80%; object-fit: contain;
+    animation: shake 0.15s infinite alternate;
+    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    border: 4px solid #fff;
+    background: #fff;
+  }
+  @keyframes shake {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(8px, -8px) scale(1.05); }
+  }
 
-        .top-bar {
-            position: relative; display: flex; justify-content: center; align-items: center;
-            margin-bottom: 1vh; height: 48px; width: 100%;
-        }
-        .title-box {
-            padding: 8px 16px; background: var(--title-bg); border-radius: 8px;
-            font-size: clamp(16px, 1.8vw, 20px); font-weight: bold; color: var(--text-main);
-            cursor: pointer; text-align: center;
-        }
-        .settings-btn {
-            position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-            background: none; border: none; color: var(--text-sub); cursor: pointer; padding: 8px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .top-left {
-            position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-            display: flex; align-items: center; gap: 2px;
-        }
-        .export-btn {
-            background: none; border: none; color: var(--text-sub); cursor: pointer; padding: 8px;
-            border-radius: 10px; display: flex; align-items: center; justify-content: center;
-            transition: color 0.2s, background 0.2s;
-        }
-        #themeBtn .icon-sun { display: none; }
-        body[data-theme="dark"] #themeBtn .icon-sun { display: block; }
-        body[data-theme="dark"] #themeBtn .icon-moon { display: none; }
-        .export-btn:hover { color: var(--primary); background: rgba(79, 158, 255, 0.12); }
-        .export-btn:disabled { opacity: 0.5; cursor: wait; }
-
-        .canvas-container {
-            flex: 1; display: flex; justify-content: center; align-items: center;
-            width: 100%; height: 100%; position: relative; touch-action: none;
-        }
-        canvas { display: block; cursor: crosshair; }
-
-        @media (max-width: 850px) or (orientation: portrait) {
-            body { padding: 10px; align-items: flex-start; }
-            .app-container { display: flex; flex-direction: column; height: auto; min-height: 95vh; }
-            .image-panel { height: 40vh; width: 100%; max-width: 400px; margin: 0 auto; }
-            .info-panel { height: auto; min-height: 80px; width: 100%; max-width: 400px; margin: 0 auto; padding: 15px; }
-            .right-panel { height: 55vh; min-height: 400px; width: 100%; margin-top: 10px; }
-        }
-
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
-            display: none; justify-content: center; align-items: center; z-index: 1000;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal-overlay.crop-overlay { padding: 10px; overflow: auto; }
-        .modal {
-            background: var(--panel-bg); border-radius: 20px; width: 90%; max-width: 450px; max-height: 85vh;
-            display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .modal-footer { padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; }
-
-        .section-title { font-weight: bold; font-size: 14px; color: var(--text-sub); margin-top: 10px; }
-        input[type="text"], input[type="number"], select {
-            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
-            background: var(--input-bg); color: var(--text-main); font-size: 14px; outline: none;
-        }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-        .btn { padding: 10px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { opacity: 0.9; }
-        .btn-secondary { background: transparent; color: var(--text-main); border: 1px solid var(--border-color); }
-        .btn-secondary:hover { background: rgba(255,255,255,0.05); }
-        .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(255, 122, 122, 0.55); }
-        .btn-danger:hover { background: rgba(255, 122, 122, 0.12); }
-        .btn-sm { padding: 8px 10px; font-size: 13px; }
-        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn:disabled:hover { background: transparent; }
-        .btn-full { width: 100%; }
-        .row-flex { display: flex; gap: 8px; }
-        .row-flex input { flex: 1; min-width: 0; }
-
-        .preset-box {
-            display: flex; flex-direction: column; gap: 10px; padding: 12px;
-            border: 1px solid var(--border-color); border-radius: 12px;
-            background: rgba(79, 158, 255, 0.07);
-        }
-        .hint { font-size: 12px; line-height: 1.6; color: var(--text-sub); }
-        .hint.warn { color: #ffb44f; }
-        .hint.error { color: var(--danger); }
-
-        /* 裁剪窗口：尺寸由 JS 按屏幕可用空间计算，保证始终完整可见 */
-        .crop-shell { width: auto; max-width: none; max-height: none; background: transparent; box-shadow: none; overflow: visible; border-radius: 0; }
-        .crop-modal-card {
-            background: var(--panel-bg); padding: 16px; border-radius: 20px;
-            display: flex; flex-direction: column; gap: 12px; align-items: stretch;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 96vw;
-        }
-        .crop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .crop-head-title { display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: bold; color: var(--text-main); }
-        .crop-hint { font-size: 11px; font-weight: normal; color: var(--text-sub); }
-        .crop-preview-box { display: flex; align-items: center; gap: 8px; }
-        #cropPreview {
-            width: 44px; height: 73px; display: block; border-radius: 10px;
-            border: 1px solid var(--border-color); background: var(--input-bg);
-        }
-        .crop-zoom-label { font-size: 12px; color: var(--text-sub); font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
-        .crop-container {
-            position: relative; overflow: hidden; margin: 0 auto;
-            border-radius: var(--crop-radius, 26px); background: var(--input-bg);
-            touch-action: none; cursor: grab; flex: 0 0 auto; max-width: 100%;
-        }
-        .crop-container.dragging { cursor: grabbing; }
-        .crop-img {
-            position: absolute; top: 0; left: 0; pointer-events: none;
-            user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none;
-        }
-        .crop-grid {
-            position: absolute; inset: 0; pointer-events: none; opacity: 0.5; z-index: 2;
-            background-image: linear-gradient(to right, rgba(79, 158, 255, 0.6) 1px, transparent 1px),
-                              linear-gradient(to bottom, rgba(79, 158, 255, 0.6) 1px, transparent 1px);
-            background-size: 33.3333% 33.3333%; background-position: -1px -1px;
-        }
-        .crop-frame {
-            position: absolute; inset: 0; pointer-events: none; z-index: 3;
-            border: 2px solid var(--primary); border-radius: var(--crop-radius, 26px);
-        }
-        .crop-tools { display: flex; align-items: center; gap: 8px; }
-        .crop-tools .btn { padding: 8px 10px; min-width: 38px; }
-        .crop-zoom-slider { flex: 1; min-width: 0; accent-color: var(--primary); }
-        .crop-actions { display: flex; gap: 10px; justify-content: flex-end; }
-        @media (max-width: 420px) { .crop-hint { display: none; } }
-
-        .img-src-row { display: flex; gap: 10px; }
-
-        .export-toast {
-            position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px);
-            background: rgba(16, 23, 40, 0.96); color: #e8f0ff; border: 1px solid var(--border-color);
-            padding: 10px 18px; border-radius: 10px; font-size: 13px; line-height: 1.5;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.45); opacity: 0; pointer-events: none;
-            transition: opacity 0.25s, transform 0.25s; z-index: 2000; max-width: 80vw; text-align: center;
-        }
-        .export-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    </style>
+  #startScreen {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center;
+    flex-direction: column; color: #fff; font-family: system-ui;
+    z-index: 300; transition: opacity 0.5s;
+  }
+  #startScreen h2 { font-size: 32px; margin-bottom: 10px; color: #ff4a4a; }
+  #startScreen p { font-size: 18px; margin: 5px 0; color: #ccc; text-align: center; padding: 0 20px; }
+  #startBtn {
+    margin-top: 30px; padding: 10px 30px; font-size: 18px;
+    background: #333; color: #fff; border: 2px solid #777; border-radius: 8px;
+    cursor: pointer; transition: background 0.2s;
+  }
+  #startBtn:hover { background: #555; }
+</style>
 </head>
-<body data-theme="dark">
+<body>
+<div id="wrap">
+  <div id="startScreen">
+    <h2>哈基蒋望景记——beta版本</h2>
+    <p>一只猫，与无穷无尽的望景。</p>
+    <p id="start-best">历史最高：第 1 层</p>
+    <p id="start-assets">总资产：0</p>
+    <button id="startBtn">开始循环</button>
+    <a href="https://github.com/GoodView-12/tools">去往本项目仓库</a>
+  </div>
 
-    <div class="app-container">
-        <div class="image-panel" id="imagePanel">
-            <div class="placeholder" id="placeholder">
-                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#4f9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                <span>点击配置图片</span>
-            </div>
-            <img id="displayImage" src="" alt="">
-        </div>
+  <canvas id="game"></canvas>
+  <div id="hint">← → 移动 ｜ ↑/空格 跳 ｜ 目标：本层望景位</div>
 
-        <div class="info-panel">
-            <div class="name" id="displayName">未命名角色</div>
-            <div class="desc" id="displayDesc">暂无简介</div>
-        </div>
-
-        <div class="right-panel">
-            <div class="top-bar">
-                <div class="top-left">
-                    <button class="export-btn" id="themeBtn" title="切换深色 / 浅色模式" aria-label="切换主题">
-                        <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line><line x1="4.9" y1="4.9" x2="7" y2="7"></line><line x1="17" y1="17" x2="19.1" y2="19.1"></line><line x1="19.1" y1="4.9" x2="17" y2="7"></line><line x1="7" y1="17" x2="4.9" y2="19.1"></line></svg>
-                        <svg class="icon-moon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    </button>
-                    <button class="export-btn" id="exportImageBtn" title="导出为图片" aria-label="导出为图片">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    </button>
-                </div>
-                <div class="title-box" id="displayTitle">角色属性</div>
-                <button class="settings-btn" id="settingsBtn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                </button>
-            </div>
-            <div class="canvas-container">
-                <canvas id="radarCanvas"></canvas>
-            </div>
-        </div>
+  <div id="ui">
+    <div id="joystick">
+      <div class="knob" id="joystickKnob"></div>
     </div>
-
-    <input type="file" id="fileInput" accept="image/*" style="display: none;">
-    <input type="file" id="jsonInput" accept=".json,application/json" style="display: none;">
-    <div class="export-toast" id="exportToast"></div>
-
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>设置</h2>
-                <button class="btn btn-secondary" onclick="closeSettings()" style="padding: 8px;">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="section-title">界面外观</div>
-                <select id="themeSelect" onchange="changeTheme(this.value)">
-                    <option value="dark">深色模式</option>
-                    <option value="light">浅色模式</option>
-                </select>
-
-                <div class="section-title">角色信息设置</div>
-                <input type="text" id="inputName" placeholder="角色名字">
-                <input type="text" id="inputDesc" placeholder="角色简介">
-
-                <div class="section-title">修改雷达图标题</div>
-                <input type="text" id="inputTitle" placeholder="雷达图标题">
-
-                <div class="section-title">修改雷达条目和数值</div>
-                <div id="radarInputsContainer" class="grid-2"></div>
-                <div class="row-flex">
-                    <button class="btn btn-secondary btn-sm" onclick="randomizeValues()" style="flex: 1;">随机数值</button>
-                    <button class="btn btn-secondary btn-sm" onclick="resetAllValues()" style="flex: 1;">重置为 50</button>
-                </div>
-
-                <div class="section-title">角色形象</div>
-                <button class="btn btn-secondary btn-full" onclick="openImageSourceModal()">重新配置角色图片</button>
-
-                <div class="section-title">方案预设</div>
-                <div class="preset-box">
-                    <select id="presetSelect" onchange="updatePresetButtons(); syncPresetNameInput();"></select>
-                    <div class="row-3">
-                        <button class="btn btn-primary btn-sm" onclick="applyPreset()">应用</button>
-                        <button class="btn btn-secondary btn-sm" id="updatePresetBtn" onclick="updateSelectedPreset()">更新</button>
-                        <button class="btn btn-danger btn-sm" id="deletePresetBtn" onclick="deletePreset()">删除</button>
-                    </div>
-                    <div class="row-flex">
-                        <input type="text" id="presetNameInput" placeholder="预设名称（留空自动命名）" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCurrentPreset();}">
-                        <button class="btn btn-secondary" onclick="saveCurrentPreset()" style="white-space: nowrap;">存为预设</button>
-                    </div>
-                    <div class="hint" id="presetHint">预设只记录雷达图标题与六维条目名称，应用时不会改动数值、角色名字、简介与形象。</div>
-                </div>
-
-                <div class="section-title">数据与导出</div>
-                <div class="preset-box">
-                    <div class="row-3">
-                        <button class="btn btn-secondary btn-sm" onclick="exportPanelImage()">导出图片</button>
-                        <button class="btn btn-secondary btn-sm" onclick="exportJson()">导出 JSON</button>
-                        <button class="btn btn-secondary btn-sm" onclick="importJsonClick()">导入 JSON</button>
-                    </div>
-                    <div class="hint">JSON 包含保存时间、角色名字与介绍、雷达条目与数值、图片数据与图片路径。</div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
-                <button class="btn btn-primary" onclick="saveSettings()">保存并应用</button>
-            </div>
-        </div>
+    <div class="pad">
+      <div class="btn" id="btnJump">↑</div>
     </div>
+  </div>
 
-    <div class="modal-overlay" id="imageSourceModal">
-        <div class="modal" style="max-width: 400px;">
-            <div class="modal-header">
-                <h2>配置角色图片</h2>
-                <button class="btn btn-secondary" onclick="closeImageSourceModal()" style="padding: 8px;">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="section-title">选择本地图片</div>
-                <button class="btn btn-secondary btn-full" onclick="chooseLocalImage()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    从设备中选择并裁剪
-                </button>
-
-                <div class="section-title">使用网络图片</div>
-                <div class="img-src-row">
-                    <input type="text" id="inputImageUrl" placeholder="粘贴图片链接..." style="flex: 1;">
-                    <button class="btn btn-primary" onclick="applyImageUrl()" style="white-space: nowrap;">应用</button>
-                </div>
-
-                <div class="section-title">调整已有形象</div>
-                <button class="btn btn-secondary btn-full" onclick="recropCurrentImage()">重新裁剪当前形象</button>
-                <div class="hint">也可以直接把图片复制到剪贴板，在页面中按 Ctrl+V 粘贴进入裁剪（Mac 为 ⌘+V）。</div>
-            </div>
-        </div>
+  <div id="desktopBar">
+    <div class="keys">
+      <span><kbd>←</kbd><kbd>→</kbd> 移动</span>
+      <span><kbd>↑</kbd>/<kbd>空格</kbd> 跳</span>
+      <span><kbd>P</kbd> 暂停</span>
+      <span><kbd>R</kbd> 重开</span>
     </div>
-
-    <div class="modal-overlay crop-overlay" id="cropModal">
-        <div class="modal crop-shell">
-            <div class="crop-modal-card">
-                <div class="crop-head">
-                    <div class="crop-head-title">
-                        <span>调整图片位置</span>
-                        <span class="crop-hint">拖动移动 · 滚轮 / 双指缩放 · 双击放大</span>
-                    </div>
-                    <div class="crop-preview-box">
-                        <canvas id="cropPreview" width="88" height="146"></canvas>
-                        <span class="crop-zoom-label" id="cropZoomLabel">适应</span>
-                    </div>
-                </div>
-                <div class="crop-container" id="cropContainer">
-                    <img class="crop-img" id="cropImage" src="" alt="crop" draggable="false">
-                    <div class="crop-grid"></div>
-                    <div class="crop-frame"></div>
-                </div>
-                <div class="crop-tools">
-                    <button class="btn btn-secondary" id="cropZoomOutBtn" title="缩小">−</button>
-                    <input type="range" class="crop-zoom-slider" id="cropZoomSlider" min="100" max="400" step="1" value="100" aria-label="缩放">
-                    <button class="btn btn-secondary" id="cropZoomInBtn" title="放大">＋</button>
-                    <button class="btn btn-secondary" id="cropResetBtn" title="恢复到适配大小">复位</button>
-                </div>
-                <div class="crop-actions">
-                    <button class="btn btn-secondary" onclick="closeCrop()">取消</button>
-                    <button class="btn btn-primary" onclick="applyCrop()">确认裁剪</button>
-                </div>
-            </div>
-        </div>
+    <div class="actions">
+      <button id="btnRestart">重开</button>
+      <button id="btnPause">暂停</button>
     </div>
+  </div>
+
+  <div id="modal">
+    <h2>SAN 值崩溃</h2>
+    <p id="modal-layer">你在第 1 层循环失去了理智</p>
+    <p id="modal-best">历史最高：第 1 层</p>
+    <p id="modal-coins">拾取的钱：0</p>
+    <div class="modal-actions">
+      <button id="btnModalRestart">重新开始</button>
+      <button id="btnModalHome">返回首页</button>
+    </div>
+  </div>
+
+  <div id="jumpscare">
+    <img id="jumpscareImg" style="display:none;" src="" alt="surprise">
+    <canvas id="jumpscareCanvas" width="400" height="400" style="display:none; max-width:80%; max-height:80%; background:#fff; border:4px solid #fff; border-radius:8px; box-shadow: 0 0 50px rgba(0,0,0,0.8); animation: shake 0.15s infinite alternate;"></canvas>
+  </div>
+</div>
 
 <script>
-    const MAX_VAL = 100;
-    const N = 6;
-    const PRESET_STORE_KEY = "radar_presets_v1";
-    const EXPORT_W = 960, EXPORT_H = 700, EXPORT_SCALE = 2;
+(function() {
+  'use strict';
 
-    // 内置预设：只提供「雷达图标题 + 六维条目名称」模板，可直接应用，不可修改、不可删除
-    const BUILTIN_PRESETS = [
-        { id: "builtin-rpg",    name: "六维属性",    title: "角色属性",   labels: ["力量", "敏捷", "智力", "耐力", "精神", "魅力"] },
-        { id: "builtin-combat", name: "战斗能力（攻防速）",  title: "战斗能力",   labels: ["攻击", "防御", "速度", "生命", "暴击", "韧性"] },
-        { id: "builtin-role",   name: "战术定位（队伍分工）", title: "战斗定位",   labels: ["输出", "承伤", "控制", "辅助", "机动", "成长"] },
-        { id: "builtin-social", name: "社交评价（人格维度）", tle: "人物评价",   labels: ["亲和", "理性", "共情", "表达", "担当", "魅力"] },
-        { id: "builtin-skill",  name: "技能熟练（职业能力）", titlite: "技能熟练度", labels: ["近战", "远程", "法术", "潜行", "生存", "交涉"] },
-        { id: "builtin-blank",  name: "空白模板",            title: "属性面板",   labels: ["属性1", "属性2", "属性3", "属性4", "属性5", "属性6"] }
-    ];
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  
+  const DESIGN_W = 960;
+  const DESIGN_H = 540;
+  
+  let logicalW = DESIGN_W;
+  let logicalH = DESIGN_H;
+  let scale = 1;
 
-    let state = {
-        labels: ["未命名1", "未命名2", "未命名3", "未命名4", "未命名5", "未命名6"],
-        values: [50, 50, 50, 50, 50, 50],
-        title: "角色属性",
-        imgSrc: "",
-        imgRef: "",
-        charName: "未命名角色",
-        charDesc: "暂无简介",
-        theme: "dark",
-        settingsVisible: true
-    };
+  function resize() {
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    
+    const targetRatio = winW / winH;
+    logicalW = DESIGN_W;
+    logicalH = DESIGN_W / targetRatio;
 
-    let userPresets = loadUserPresets();
-    let draggingIdx = null;
-    let cx = 0, cy = 0, radius = 0;
-    let textOffset = 0;
+    if (logicalH < 540) logicalH = 540;
+    if (logicalH > 1400) logicalH = 1400;
 
-    // ---------- DOM 引用 ----------
-    const canvas = document.getElementById('radarCanvas');
-    const ctx = canvas.getContext('2d');
-    const settingsModal = document.getElementById('settingsModal');
-    const imageSourceModal = document.getElementById('imageSourceModal');
-    const cropModal = document.getElementById('cropModal');
-    const fileInput = document.getElementById('fileInput');
-    const jsonInput = document.getElementById('jsonInput');
-    const displayImage = document.getElementById('displayImage');
-    const placeholder = document.getElementById('placeholder');
-    const cropImage = document.getElementById('cropImage');
-    const cropContainer = document.getElementById('cropContainer');
-    const titleBox = document.getElementById('displayTitle');
+    scale = winW / logicalW;
+    
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = winW * dpr;
+    canvas.height = winH * dpr;
+    canvas.style.width = winW + 'px';
+    canvas.style.height = winH + 'px';
+    
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.scale(scale, scale);
+  }
+  
+  window.addEventListener('resize', resize);
+  
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
 
-    // 裁剪输出分辨率固定，屏幕显示尺寸按可用空间等比缩放
-    const CROP_W = 320, CROP_H = 530;
-    const CROP_RESERVED_V = 270;   // 标题+预览 / 工具条 / 按钮 / 内边距预留高度
-    const CROP_RESERVED_H = 60;
-    const CROP_MIN_VIEW = 120;
-    const CROP_MAX_ZOOM = 4;       // 相对「适配」的最大放大倍数
+  function initAudio() {
+    if (!audioCtx) audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
 
-    let cropObj = {
-        src: "", fileName: "",
-        imgWidth: 0, imgHeight: 0,
-        viewW: CROP_W, viewH: CROP_H,     // 当前屏幕上裁剪框的尺寸
-        fitScale: 1,                      // 铺满裁剪框所需的最小缩放
-        scale: 1,                         // 源图 1px 在屏幕上的显示像素
-        offsetX: 0, offsetY: 0,           // 图片左上角相对裁剪框的偏移
-        corsBlocked: false
-    };
+  // 音效参数表：wave 波形、f1/f2 频率渐变、dur 时长、g1/g2 增益渐变
+  // notes 为离散音符（如 coin 的两步音），存在时优先于 f1/f2 渐变
+  const SOUND_SPECS = {
+    jump:      { wave:'sine',     f1:300,  f2:600,  dur:0.1, g1:0.1,  g2:0.01 },
+    coin:      { wave:'triangle', notes:[[880, 0], [1046.5, 0.1]], dur:0.3, g1:0.15, g2:0.01 },
+    hurt:      { wave:'sawtooth', f1:150,  f2:50,   dur:0.2, g1:0.2,  g2:0.01 },
+    stamp:     { wave:'square',   f1:100,  f2:30,   dur:0.3, g1:0.3,  g2:0.01 },
+    jumpscare: { wave:'sawtooth', f1:1000, f2:200,  dur:0.5, g1:0.3,  g2:0.01 },
+  };
 
-    // ---------- 通用工具 ----------
-    let toastTimer = null;
-    function showToast(msg) {
-        const el = document.getElementById('exportToast');
-        if (!el) return;
-        el.innerText = msg;
-        el.className = 'export-toast show';
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { el.className = 'export-toast'; }, 2600);
+  function playSound(type) {
+    if (!audioCtx) return;
+    const spec = SOUND_SPECS[type];
+    if (!spec) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = spec.wave;
+    const t = audioCtx.currentTime;
+    if (spec.notes) {
+      for (const [f, at] of spec.notes) osc.frequency.setValueAtTime(f, t + at);
+    } else {
+      osc.frequency.setValueAtTime(spec.f1, t);
+      osc.frequency.exponentialRampToValueAtTime(spec.f2, t + spec.dur);
     }
+    gain.gain.setValueAtTime(spec.g1, t);
+    gain.gain.exponentialRampToValueAtTime(spec.g2, t + spec.dur);
+    osc.start(t); osc.stop(t + spec.dur);
+  }
 
-    function escapeAttr(value) {
-        return String(value === undefined || value === null ? '' : value)
-            .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const CONFIG = {
+    W: DESIGN_W, H: DESIGN_H,
+    catW: 64, catH: 64,
+    catSpeed: 240, 
+    jumpVel: -620, gravity: 1800,
+    baseWorldW: 1400, worldWInc: 300,
+    sanMax: 100, sanDamage: 38, 
+    sanRecover: 7, 
+    startX: 40,
+    coverH: 80, stoneW: 76, stoneH: 64, wallW: 56, wallH: 64,
+    bulletSpeed: 380, 
+    bulletRadius: 12, bulletExplodeDamage: 30, 
+    stonePulsePeriod: 2.0, stonePulseDuration: 1.0,
+    stampDamage: 40, stampWarnTime: 0.6,
+    shakeDecay: 8,
+  };
+
+  const images = {};
+  function loadImg(key, url) {
+    if (!url) { images[key] = null; return; }
+    const img = new Image();
+    img.onload = () => { images[key] = img; };
+    img.onerror = () => { images[key] = null; };
+    img.src = url;
+  }
+  
+  loadImg('cat', 'images/cat.png');
+  loadImg('coin', 'images/coin.png');
+
+  const jumpscareImgEl = document.getElementById('jumpscareImg');
+  const jumpscareCanvasEl = document.getElementById('jumpscareCanvas');
+  jumpscareImgEl.onload = () => { jumpscareImgEl.style.display = 'block'; jumpscareCanvasEl.style.display = 'none'; };
+  jumpscareImgEl.onerror = () => { jumpscareImgEl.style.display = 'none'; jumpscareCanvasEl.style.display = 'block'; drawFallbackJumpscare(); };
+  jumpscareImgEl.src = 'jumpscare.jpg';
+
+  function drawFallbackJumpscare() {
+    const c = jumpscareCanvasEl, cctx = c.getContext('2d');
+    cctx.fillStyle = '#fff'; cctx.fillRect(0, 0, c.width, c.height);
+    cctx.fillStyle = '#000'; cctx.beginPath(); cctx.arc(200, 200, 150, 0, Math.PI*2); cctx.fill();
+    cctx.fillStyle = '#fff'; cctx.beginPath(); cctx.arc(130, 160, 45, 0, Math.PI*2); cctx.fill(); cctx.beginPath(); cctx.arc(270, 160, 45, 0, Math.PI*2); cctx.fill();
+    cctx.fillStyle = '#000'; cctx.beginPath(); cctx.arc(130, 160, 10, 0, Math.PI*2); cctx.fill(); cctx.beginPath(); cctx.arc(270, 160, 10, 0, Math.PI*2); cctx.fill();
+    cctx.fillStyle = '#cc3333'; cctx.beginPath(); cctx.moveTo(100, 280); cctx.quadraticCurveTo(200, 380, 300, 280); cctx.quadraticCurveTo(200, 320, 100, 280); cctx.fill();
+    cctx.strokeStyle = '#fff'; cctx.lineWidth = 6; cctx.beginPath(); cctx.moveTo(100, 140); cctx.lineTo(160, 140); cctx.stroke(); cctx.beginPath(); cctx.moveTo(240, 140); cctx.lineTo(300, 140); cctx.stroke();
+  }
+
+  const uiTouch = document.getElementById('ui');
+  const uiDesktop = document.getElementById('desktopBar');
+  const hintEl = document.getElementById('hint');
+  let currentMode = null;
+
+  function setMode(mode) {
+    if (mode === currentMode) return;
+    currentMode = mode;
+    if (mode === 'touch') {
+      uiTouch.style.display = 'flex'; uiDesktop.style.display = 'none';
+      hintEl.textContent = '摇杆移动 ｜ 点击 ↑ 跳跃 ｜ 目标：本层望景位';
+    } else {
+      uiTouch.style.display = 'none'; uiDesktop.style.display = 'flex';
+      hintEl.textContent = '← → 移动 ｜ ↑/空格 跳 ｜ 目标：本层望景位';
     }
+    resize();
+  }
+  setMode(window.matchMedia && window.matchMedia('(pointer:coarse)').matches ? 'touch' : 'desktop');
 
-    function pad2(n) { return String(n).padStart(2, '0'); }
+  window.addEventListener('keydown', e => {
+    if (['Shift','Control','Alt','Meta'].includes(e.key)) return;
+    setMode('desktop');
+  }, true);
+  window.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') setMode('touch');
+    else if (e.pointerType === 'mouse') setMode('desktop');
+  }, true);
 
-    function timeStamp() {
-        const d = new Date();
-        return pad2(d.getFullYear()) + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '_' +
-            pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+  const keys = { left:false, right:false, jump:false };
+  const keyMap = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'jump', ' ':'jump', a:'left', d:'right', w:'jump' };
+  let paused = false;
+
+  window.addEventListener('keydown', e => {
+    // 首页或失败弹窗时，快捷键不作用于游戏
+    if (state === 'waiting' || state === 'gameover') return;
+    const k = keyMap[e.key];
+    if (k === 'jump') { e.preventDefault(); if (!e.repeat) doJump(); return; } // 跳跃单击
+    if (k) { keys[k] = true; e.preventDefault(); }
+    if (e.key === 'r' || e.key === 'R') resetGame();
+    if (e.key === 'p' || e.key === 'P') paused = !paused;
+  });
+  window.addEventListener('keyup', e => {
+    const k = keyMap[e.key];
+    if (k) { keys[k] = false; e.preventDefault(); }
+  });
+
+  // ===================== 移动端控件：虚拟摇杆 + 跳跃单击 =====================
+  const joystickEl = document.getElementById('joystick');
+  const joystickKnobEl = document.getElementById('joystickKnob');
+  const JOY_DEAD = 0.3; // 摇杆死区比例
+  let joyPointerId = null;
+
+  function moveJoystick(clientX, clientY) {
+    const rect = joystickEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const maxR = rect.width / 2 - joystickKnobEl.offsetWidth / 2;
+    const dx = clientX - cx, dy = clientY - cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const clamped = Math.min(dist, maxR);
+    const kx = (dx / dist) * clamped, ky = (dy / dist) * clamped;
+    joystickKnobEl.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+    const nx = kx / maxR;
+    keys.left = nx < -JOY_DEAD;
+    keys.right = nx > JOY_DEAD;
+  }
+
+  function resetJoystick() {
+    joyPointerId = null;
+    keys.left = false; keys.right = false;
+    joystickKnobEl.style.transform = 'translate(-50%,-50%)';
+  }
+
+  joystickEl.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    joyPointerId = e.pointerId;
+    joystickEl.setPointerCapture(e.pointerId);
+    moveJoystick(e.clientX, e.clientY);
+  });
+  joystickEl.addEventListener('pointermove', e => {
+    if (e.pointerId !== joyPointerId) return;
+    moveJoystick(e.clientX, e.clientY);
+  });
+  joystickEl.addEventListener('pointerup', e => { if (e.pointerId === joyPointerId) resetJoystick(); });
+  joystickEl.addEventListener('pointercancel', e => { if (e.pointerId === joyPointerId) resetJoystick(); });
+
+  // 跳跃：单击立即触发一次（替代原来的长按轮询，响应更快）
+  function doJump() {
+    if (state !== 'play') return;
+    if (cat.onGround) {
+      cat.vy = CONFIG.jumpVel; cat.onGround = false; jumpCount = 1; playSound('jump');
+    } else if (jumpCount < 2) {
+      cat.vy = CONFIG.jumpVel * 0.85; jumpCount++; playSound('jump');
     }
+  }
 
-    function safeFileName(name) {
-        const base = String(name || '').replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^_+|_+$/g, '');
-        return base || '角色面板';
+  const btnJumpEl = document.getElementById('btnJump');
+  btnJumpEl.addEventListener('pointerdown', e => { e.preventDefault(); doJump(); });
+  btnJumpEl.addEventListener('contextmenu', e => e.preventDefault());
+
+  document.getElementById('btnRestart').addEventListener('click', () => { resetGame(); paused = false; });
+  document.getElementById('btnPause').addEventListener('click', () => { paused = !paused; });
+  window.addEventListener('blur', () => { if (state === 'play') paused = true; });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  const COLOR_BASE = { skyTop:[217,217,217], skyBottom:[143,143,143], groundTop:[90,90,90], groundBot:[43,43,43], ui:[255,255,255], accent:[187,187,187], wave:[255,255,255], sun:[255,255,255], cloud:[255,255,255] };
+  const COLOR_RED  = { skyTop:[138,58,58], skyBottom:[74,18,18], groundTop:[58,20,20], groundBot:[26,8,8], ui:[255,106,106], accent:[204,68,68], wave:[255,90,90], sun:[255,110,90], cloud:[200,80,80] };
+  let redT = 0;
+  function lerpColor(a, b, t) { return [ Math.round(a[0]+(b[0]-a[0])*t), Math.round(a[1]+(b[1]-a[1])*t), Math.round(a[2]+(b[2]-a[2])*t) ]; }
+  function rgb(c){ return `rgb(${c[0]},${c[1]},${c[2]})`; }
+  function rgba(c, a){ return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+  function colorAt(key, t){ return lerpColor(COLOR_BASE[key], COLOR_RED[key], t); }
+
+  const SCENERY = {
+    early: ['一片草坪。','一台仿石音响在播放广场舞。','风吹过，什么也没发生。','远处有一台音响，正在播放天气预报。'],
+    mid: ['同一片草坪，但音响多了一台。','风景里有一台音响正在看你。','你好像来过这里。','草坪上的石头，都在播放同一首歌。'],
+    deep: ['风景是一台音响在看风景。','草坪上摆满了望景位，但没有猫。','太阳没有落，它只是变红了。','你听见自己在第 3 层叫过。'],
+    meta: ['你确定这是第 N 层，还是第 1 层？','风景已记录。风景已记录。风景已记录。','猫坐下的时候，音响也在循环。','望景位在看你。']
+  };
+  function sceneryFor(layer) {
+    let pool = SCENERY.early;
+    if (layer > 3 && layer <= 6) pool = SCENERY.mid;
+    else if (layer > 6 && layer <= 10) pool = SCENERY.deep;
+    else if (layer > 10) pool = SCENERY.meta;
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  let cat, san, time, state, camX;
+  let layer = 1, layerWorldW = CONFIG.baseWorldW, layerSeat = null;
+  let layerSpeakers = [], layerCovers = [], layerCoins = [], layerPlatforms = [];
+  let currentScenery = '';
+  let transition = { active: false, phase: 'none', t: 0, camFrom: 0, camTo: 0 };
+  let currentSanDrain = 0, currentBullets = [], coinCount = 0;
+  let stampObstacle = null, shakeMagnitude = 0;
+  let jumpCount = 0; 
+  
+  let voidTimer = 0;
+  let voidSpikes = [];
+
+  let jumpscareActive = false, jumpscareTimer = 0;
+  const jumpscareEl = document.getElementById('jumpscare');
+
+  let bestLayer = parseInt(localStorage.getItem('cat_audio_best') || '1');
+  let totalAssets = parseInt(localStorage.getItem('cat_audio_assets') || '0') || 0;
+  const modal = document.getElementById('modal');
+  const modalLayer = document.getElementById('modal-layer');
+  const modalBest = document.getElementById('modal-best');
+  const modalCoins = document.getElementById('modal-coins');
+
+  const startScreenEl = document.getElementById('startScreen');
+  const startBestEl = document.getElementById('start-best');
+  const startAssetsEl = document.getElementById('start-assets');
+
+  // 刷新启动界面的历史最高分与总资产
+  function updateStartScreen() {
+    startBestEl.textContent = '历史最高：第 ' + bestLayer + ' 层';
+    startAssetsEl.textContent = '总资产：' + totalAssets;
+  }
+
+  // 把本局拾取的钱结算进总资产并清零本局计数
+  function bankCoins() {
+    if (coinCount > 0) {
+      totalAssets += coinCount;
+      localStorage.setItem('cat_audio_assets', totalAssets);
+      coinCount = 0;
     }
+  }
 
-    function downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function () {
-            if (a.parentNode) a.parentNode.removeChild(a);
-            setTimeout(function () { URL.revokeObjectURL(url); }, 500);
-        }, 500);
+  updateStartScreen();
+  state = 'waiting';
+  resize();
+
+  function resetGame() {
+    bankCoins(); // 中途重开也把本局的钱记入总资产
+    keys.left = false; keys.right = false; keys.jump = false;
+    layer = 1; coinCount = 0; shakeMagnitude = 0; jumpCount = 0; voidTimer = 0; voidSpikes = [];
+    generateLayer(layer);
+    cat = { x: CONFIG.startX, y: 0, vx: 0, vy: 0, onGround: false, facing: 1, wobble: 0 };
+    san = CONFIG.sanMax; 
+    time = 0; state = 'play'; camX = 0;
+    transition = { active:false, phase:'none', t:0, camFrom:0, camTo:0 };
+    currentScenery = ''; currentBullets = []; stampObstacle = null;
+    paused = false; modal.style.display = 'none'; jumpscareEl.style.display = 'none'; jumpscareActive = false;
+  }
+
+  function triggerGameOver() {
+    state = 'gameover';
+    if (layer > bestLayer) { bestLayer = layer; localStorage.setItem('cat_audio_best', bestLayer); }
+    const earned = coinCount; // 本局拾取
+    bankCoins();              // 结算进总资产并清零本局
+    modalLayer.textContent = '你在第 ' + layer + ' 层循环失去了理智';
+    modalBest.textContent = '历史最高：第 ' + bestLayer + ' 层';
+    modalCoins.textContent = '本局拾取：' + earned + ' ｜ 总资产：' + totalAssets;
+    modal.style.display = 'flex';
+    playSound('hurt');
+  }
+
+  document.getElementById('btnModalRestart').addEventListener('click', resetGame);
+
+  // 返回首页：隐藏失败弹窗，重新显示启动界面（同步最新最高分与总资产）
+  function goHome() {
+    modal.style.display = 'none';
+    updateStartScreen();
+    resetJoystick();
+    startScreenEl.style.display = 'flex';
+    startScreenEl.style.opacity = '1';
+    state = 'waiting';
+  }
+
+  document.getElementById('btnModalHome').addEventListener('click', goHome);
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    initAudio();
+    startScreenEl.style.opacity = '0';
+    setTimeout(() => { startScreenEl.style.display = 'none'; resetGame(); }, 500);
+  });
+
+  function triggerJumpscare() {
+    if (jumpscareActive) return;
+    jumpscareActive = true; jumpscareTimer = 0.8; jumpscareEl.style.display = 'flex';
+    san = Math.max(0, san - 15); shakeMagnitude = 20; playSound('jumpscare');
+  }
+
+  function randRange(a, b){ return a + Math.random() * (b - a); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  // ===================== 关卡生成（连续起伏 + 悬崖 + 浮空岛） =====================
+  function generateLayer(n) {
+    const len = CONFIG.baseWorldW + (n-1) * CONFIG.worldWInc;
+    layerWorldW = len;
+    redT = Math.min(1, (n-1) / 12);
+
+    const baseGroundY = logicalH * 0.82;
+    const safeStart = Math.max(100, 200 - n * 10);
+    const safeEnd = safeStart; // 首尾安全区等宽
+    const playableLen = len - safeStart - safeEnd;
+
+    const diff = 1.0 + (n - 1) * 0.15;
+
+    // 障碍物总量：可玩区按 spacing 均分，层数越高越密集
+    const spacing = Math.max(120, 300 - (n - 1) * 15);
+    const total = clamp(Math.floor(playableLen / spacing), 1, 25);
+
+    // 墙（空中声源）与石头（地面脉冲）按随机比例分配，保持总数守恒
+    const wallRatio = 0.5 + Math.random() * 0.2; // 0.5 ~ 0.7
+    const wallCount = clamp(Math.round(total * wallRatio), 1, total);
+    const stoneCount = total - wallCount;
+
+    const coverCount = Math.max(1, Math.floor(total * 0.4));
+
+    // 望景位位置
+    layerSeat = { x: len - 110, y: baseGroundY - 60, w: 70, h: 60 };
+    // 望景位安全区（左右各留出 150 像素）
+    const seatSafeMin = layerSeat.x - 150;
+    const seatSafeMax = layerSeat.x + layerSeat.w + 150;
+
+    // 1. 生成连续起伏的地形折线（带断层）
+    layerPlatforms = [];
+    let currentX = safeStart;
+    let currentY = baseGroundY;
+    layerPlatforms.push({ x: -100, w: safeStart + 100, y: currentY, isFloat: false });
+
+    while (currentX < len - safeEnd) {
+      const stepX = randRange(150, 300);
+      const stepY = randRange(-60, 60);
+      let nextY = clamp(currentY + stepY, logicalH * 0.5, baseGroundY);
+      
+      if (Math.random() < 0.3) nextY = currentY;
+
+      currentX += stepX;
+      layerPlatforms.push({ x: currentX - stepX, w: stepX, y: currentY, isFloat: false });
+
+      // 悬崖
+      if (Math.random() < 0.4 && currentX < len - safeEnd - 200) {
+        const gap = randRange(100, 220); 
+        currentX += gap;
+      }
+      
+      currentY = nextY;
     }
+    
+    // 确保终点有平坦的地面
+    layerPlatforms.push({ x: len - safeEnd - 200, w: safeEnd + 400, y: baseGroundY, isFloat: false });
 
-    function downloadDataUrl(dataUrl, filename) {
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 500);
-    }
-
-    // ---------- 预设存储 ----------
-    // 预设只记录「雷达图标题 + 六维条目名称」，不包含数值、角色名字与形象
-    function normalizePreset(raw) {
-        if (!raw || typeof raw !== 'object') return null;
-        const labels = Array.isArray(raw.labels) ? raw.labels : null;
-        if (!labels) return null;
-        const cleanLabels = [];
-        for (let i = 0; i < N; i++) {
-            const l = labels[i] === undefined || labels[i] === null ? '' : String(labels[i]).trim();
-            cleanLabels.push(l || ('属性' + (i + 1)));
+    // 2. 生成浮空岛 (严格限制在地面上方)
+    const floatCount = Math.max(3, Math.floor(playableLen / 300));
+    for (let i = 0; i < floatCount; i++) {
+      let tries = 0, fx = 0, ok = false;
+      const fw = randRange(80, 160);
+      while (tries++ < 80) {
+        fx = randRange(safeStart + 100, len - safeEnd - 200);
+        // 浮空岛高度在基准地面 - 150 到 - 300 之间
+        const fy = baseGroundY - randRange(150, 300);
+        
+        // 确保不和任何地面平台或已有浮空岛重叠
+        let overlap = false;
+        for (const p of layerPlatforms) {
+          if (fx + fw > p.x - 40 && fx < p.x + p.w + 40 && Math.abs(fy - p.y) < 80) {
+            overlap = true; break;
+          }
         }
-        const title = String(raw.title === undefined || raw.title === null ? '' : raw.title).trim();
-        return {
-            id: typeof raw.id === 'string' && raw.id ? raw.id : ('preset-' + Date.now() + '-' + Math.floor(Math.random() * 1000)),
-            name: String(raw.name === undefined || raw.name === null ? '' : raw.name).trim() || '未命名预设',
-            title: title || '角色属性',
-            labels: cleanLabels,
-            builtin: false
-        };
-    }
-
-    function loadUserPresets() {
-        let list = [];
-        try {
-            const raw = localStorage.getItem(PRESET_STORE_KEY);
-            if (raw) list = JSON.parse(raw);
-        } catch (err) {
-            list = [];
+        if (!overlap) { 
+          layerPlatforms.push({ x: fx, w: fw, y: fy, isFloat: true });
+          ok = true; 
+          break; 
         }
-        if (!Array.isArray(list)) return [];
-        const out = [];
-        for (let i = 0; i < list.length; i++) {
-            const p = normalizePreset(list[i]);
-            if (p) out.push(p);
+      }
+    }
+
+    // 强制望景位区域为平坦地面，避免座位悬空或埋入起伏地形
+    const seatPadMin = layerSeat.x - 200;
+    const seatPadMax = layerSeat.x + layerSeat.w + 120;
+    for (const p of layerPlatforms) {
+      if (!p.isFloat && p.x + p.w > seatPadMin && p.x < seatPadMax) p.y = baseGroundY;
+    }
+    layerPlatforms.push({ x: seatPadMin, w: seatPadMax - seatPadMin, y: baseGroundY, isFloat: false });
+    layerSeat.y = baseGroundY - layerSeat.h; // 座位坐落在实际地面上
+
+    layerSpeakers = [];
+    layerCovers = [];
+    layerCoins = [];
+    currentBullets = [];
+    stampObstacle = null;
+
+    function getPlatformAt(x) {
+      for (const p of layerPlatforms) {
+        if (x >= p.x && x <= p.x + p.w) return p;
+      }
+      return null; 
+    }
+
+    const minGap = Math.max(40, 120 - (n - 1) * 8);
+    
+    // 3. 掩体（排除望景位安全区）
+    for (let i = 0; i < coverCount; i++) {
+      let tries = 0, x = 0, ok = false;
+      const w = 80 + Math.random() * 40;
+      while (tries++ < 80) {
+        x = randRange(safeStart + 50, len - safeEnd - 150);
+        // 排除望景位附近
+        if (x + w > seatSafeMin && x < seatSafeMax) continue;
+
+        const p1 = getPlatformAt(x);
+        const p2 = getPlatformAt(x + w);
+        
+        if (!p1 || p1 !== p2 || p1.isFloat) continue;
+        if (x < p1.x + 40 || x + w > p1.x + p1.w - 40) continue;
+        
+        let overlap = false;
+        for (const c of layerCovers) {
+          if (x + w > c.x - 60 && x < c.x + c.w + 60) { overlap = true; break; }
         }
-        return out;
+        if (!overlap) { ok = true; break; }
+      }
+      if (!ok) continue;
+      const p = getPlatformAt(x + w/2);
+      layerCovers.push({ x, w, h: CONFIG.coverH, y: p.y - CONFIG.coverH, broken: false });
+    }
+    layerCovers.sort((a, b) => a.x - b.x);
+
+    function isValidPos(x, r) {
+      if (x - r < safeStart) return false;
+      if (x + r > len - safeEnd) return false;
+      // 排除望景位附近
+      if (x + r > seatSafeMin && x - r < seatSafeMax) return false;
+      
+      for (const c of layerCovers) {
+        if (x + r > c.x - 20 && x - r < c.x + c.w + 20) return false;
+      }
+      for (const s of layerSpeakers) { if (Math.abs(s.x - x) < minGap) return false; }
+      return true;
     }
 
-    function saveUserPresets() {
-        try {
-            localStorage.setItem(PRESET_STORE_KEY, JSON.stringify(userPresets));
-            return true;
-        } catch (err) {
-            showToast('预设保存失败：浏览器本地存储不可用');
-            return false;
+    // 4. 墙上音响
+    for (let i = 0; i < wallCount; i++) {
+      let tries = 0, x = 0, ok = false;
+      const r = 120 + diff * 15;
+      const period = Math.max(1.6, 3.5 - diff * 0.25);
+      while (tries++ < 80) { 
+        x = randRange(safeStart, len - safeEnd); 
+        if (isValidPos(x, r * 0.5)) { ok = true; break; } 
+      }
+      if (!ok) continue;
+      layerSpeakers.push({ type: 'wall', x, y: 140, r, period, phase: Math.random() * period, timer: Math.random() * period, w: CONFIG.wallW, h: CONFIG.wallH });
+    }
+
+    // 5. 地上音响
+    for (let i = 0; i < stoneCount; i++) {
+      let tries = 0, x = 0, ok = false;
+      const r = 100 + diff * 12;
+      while (tries++ < 80) { 
+        x = randRange(safeStart, len - safeEnd); 
+        const p = getPlatformAt(x);
+        if (!p || x < p.x + 30 || x > p.x + p.w - 30) continue; 
+
+        if (isValidPos(x, r * 0.5)) { ok = true; break; } 
+      }
+      if (!ok) continue;
+      const p = getPlatformAt(x);
+      layerSpeakers.push({ 
+        type: 'stone', x, y: p.y - 32, r, phase: Math.random() * Math.PI * 2,
+        w: CONFIG.stoneW, h: CONFIG.stoneH, groundY: p.y, 
+        pulseTimer: Math.random() * CONFIG.stonePulsePeriod, pulseActive: false, pulseLife: 0, pulseR: 0, pulseAlpha: 0
+      });
+    }
+
+    // 6. 金币（排除望景位安全区）
+    const coinCountGen = Math.floor(total * 0.6) + 1;
+    for (let i = 0; i < coinCountGen; i++) {
+      let tries = 0, x = 0, ok = false;
+      while (tries++ < 80) {
+        x = randRange(safeStart + 50, len - safeEnd - 50);
+        // 排除望景位附近
+        if (x > seatSafeMin && x < seatSafeMax) continue;
+
+        let overlap = false;
+        for (const c of layerCovers) { if (x > c.x - 40 && x < c.x + c.w + 40) { overlap = true; break; } }
+        for (const s of layerSpeakers) { if (Math.abs(x - s.x) < 60) { overlap = true; break; } }
+        if (!overlap) { ok = true; break; }
+      }
+      if (!ok) continue;
+      const p = getPlatformAt(x);
+      const groundY = p ? p.y : baseGroundY;
+      const yOffset = p && p.isFloat ? 40 : (Math.random() < 0.3 ? randRange(160, 240) : randRange(60, 120));
+      layerCoins.push({ x, y: groundY - yOffset, collected: false });
+    }
+
+    layerSpeakers.sort((a, b) => a.x - b.x);
+    // 基础流失：前 2 层为 0（熟悉操作），之后平滑递增并封顶
+    currentSanDrain = Math.min(2.5, Math.max(0, (n - 2) * 0.2));
+  }
+
+  // ===================== 碰撞与判定 =====================
+  function inCircle(px, py, cx, cy, r){ return (px-cx)**2 + (py-cy)**2 <= r*r; }
+
+  function getActiveHitboxes() {
+    const hitboxes = [];
+    for (const s of layerSpeakers) {
+      if (s.type === 'stone' && s.pulseActive) hitboxes.push({ cx: s.x, cy: s.y, r: s.pulseR, type: 'pulse', alpha: s.pulseAlpha });
+    }
+    return hitboxes;
+  }
+
+  function getCollisionBoxes() {
+    const boxes = [];
+    for (const p of layerPlatforms) {
+      boxes.push({ x: p.x, y: p.y, w: p.w, h: logicalH - p.y, isPlatform: true });
+    }
+    for (const c of layerCovers) { if (!c.broken) boxes.push({ x: c.x, y: c.y, w: c.w, h: c.h, isCover: true, ref: c }); }
+    for (const s of layerSpeakers) {
+      boxes.push({ x: s.x - s.w/2, y: s.y - s.h/2, w: s.w, h: s.h, isCover: false });
+    }
+    return boxes;
+  }
+
+  function update(dt) {
+    if (state === 'waiting' || state === 'gameover' || paused) return;
+    if (state === 'transition') { updateTransition(dt); return; }
+    
+    if (jumpscareActive) {
+      jumpscareTimer -= dt;
+      if (jumpscareTimer <= 0) { jumpscareActive = false; jumpscareEl.style.display = 'none'; }
+      return; 
+    }
+
+    if (shakeMagnitude > 0) { shakeMagnitude -= dt * 50; if (shakeMagnitude < 0) shakeMagnitude = 0; }
+    time += dt;
+
+    // 红色印章
+    if (layer >= 5) {
+      if (!stampObstacle) {
+        if (Math.random() < 0.15 * dt * 60) {
+          const fallX = clamp(cat.x + randRange(-100, 100), 50, layerWorldW - 100);
+          let targetGy = logicalH;
+          for (const p of layerPlatforms) { if (fallX >= p.x && fallX <= p.x + p.w && !p.isFloat) { targetGy = p.y; break; } }
+          stampObstacle = { x: fallX, w: 80, timer: CONFIG.stampWarnTime, state: 'warn', y: -100, targetY: targetGy };
         }
-    }
-
-    function getAllPresets() { return BUILTIN_PRESETS.concat(userPresets); }
-
-    function findPreset(id) {
-        if (!id) return null;
-        const list = getAllPresets();
-        for (let i = 0; i < list.length; i++) {
-            if (list[i].id === id) return list[i];
+      } else {
+        stampObstacle.timer -= dt;
+        if (stampObstacle.state === 'warn') {
+          if (stampObstacle.timer <= 0) { stampObstacle.state = 'drop'; stampObstacle.y = -100; }
+        } else if (stampObstacle.state === 'drop') {
+          stampObstacle.y += 3000 * dt; 
+          if (stampObstacle.y >= stampObstacle.targetY - 80) {
+            stampObstacle.y = stampObstacle.targetY - 80; stampObstacle.state = 'impact'; stampObstacle.timer = 0.5; playSound('stamp');
+            if (cat.x + CONFIG.catW > stampObstacle.x && cat.x < stampObstacle.x + stampObstacle.w && cat.y + CONFIG.catH > stampObstacle.targetY - 80) { san -= CONFIG.stampDamage; shakeMagnitude = 15; }
+          }
+        } else if (stampObstacle.state === 'impact') {
+          if (stampObstacle.timer <= 0) stampObstacle = null; 
         }
-        return null;
+      }
     }
 
-    function isBuiltinPreset(id) {
-        for (let i = 0; i < BUILTIN_PRESETS.length; i++) {
-            if (BUILTIN_PRESETS[i].id === id) return true;
+    // 深渊凝视逻辑
+    let onPlatform = false;
+    for (const p of layerPlatforms) {
+      if (cat.x + CONFIG.catW > p.x + 10 && cat.x < p.x + p.w - 10 && Math.abs(cat.y + CONFIG.catH - p.y) < 20) { onPlatform = true; break; }
+    }
+    if (!onPlatform && !cat.onGround) {
+      voidTimer += dt;
+      if (voidTimer > 0.8) { 
+        san -= 50 * dt; 
+        if (Math.random() < 0.2) {
+           voidSpikes.push({ x: cat.x, y: logicalH, h: 150, life: 0.5 });
         }
-        return false;
+        shakeMagnitude = Math.max(shakeMagnitude, 5);
+      }
+    } else {
+      voidTimer = 0;
+    }
+    
+    for (let i = voidSpikes.length - 1; i >= 0; i--) {
+      voidSpikes[i].life -= dt;
+      if (voidSpikes[i].life <= 0) voidSpikes.splice(i, 1);
     }
 
-    function findUserPresetByName(name, exceptId) {
-        const target = String(name === undefined || name === null ? '' : name).trim();
-        if (!target) return null;
-        for (let i = 0; i < userPresets.length; i++) {
-            if (userPresets[i].name === target && userPresets[i].id !== exceptId) return userPresets[i];
+    let ax = 0;
+    if (keys.left) ax -= 1;
+    if (keys.right) ax += 1;
+    if (ax !== 0) cat.facing = ax;
+    cat.vx = ax * CONFIG.catSpeed;
+    
+    let newX = cat.x + cat.vx * dt;
+    const catH = CONFIG.catH, cw = CONFIG.catW;
+    const colliders = getCollisionBoxes();
+
+    // 水平碰撞
+    for (const box of colliders) {
+      if (!box.isPlatform && newX + cw > box.x && newX < box.x + box.w &&
+          cat.y + catH > box.y && cat.y < box.y + box.h) {
+        if (cat.vx > 0) newX = box.x - cw;
+        if (cat.vx < 0) newX = box.x + box.w;
+      }
+    }
+    cat.x = newX;
+
+    // 跳跃由键盘/触摸单击事件触发（doJump），此处不再轮询 keys.jump
+
+    cat.vy += CONFIG.gravity * dt;
+    cat.y += cat.vy * dt;
+
+    cat.onGround = false;
+    for (const box of colliders) {
+      if (cat.x + cw > box.x && cat.x < box.x + box.w &&
+          cat.vy > 0 && cat.y + catH > box.y && cat.y + catH < box.y + Math.max(30, cat.vy * dt)) {
+        cat.y = box.y - catH;
+        cat.vy = 0;
+        cat.onGround = true;
+        jumpCount = 0; 
+        break;
+      }
+    }
+
+    if (cat.y > logicalH + 100) {
+      san -= 20; shakeMagnitude = 20;
+      if (san <= 0) { triggerGameOver(); return; }
+      // 掉坑后回到最近的地面平台，而不是整关重来
+      let bestP = null, bestDist = Infinity;
+      for (const p of layerPlatforms) {
+        if (p.isFloat) continue;
+        const px = clamp(cat.x, p.x + 40, p.x + p.w - 40);
+        const d = Math.abs(px - cat.x);
+        if (d < bestDist) { bestDist = d; bestP = p; }
+      }
+      if (bestP) { cat.x = clamp(cat.x, bestP.x + 40, bestP.x + bestP.w - 40); cat.y = bestP.y - catH; }
+      else { cat.x = CONFIG.startX; cat.y = -100; }
+      cat.vy = 0; jumpCount = 0;
+    }
+
+    cat.x = clamp(cat.x, 0, layerWorldW - cw);
+    if (ax !== 0 && cat.onGround) cat.wobble = Math.sin(time * 14) * 0.1; else cat.wobble = 0;
+
+    const followTarget = clamp(cat.x - logicalW * 0.35, 0, layerWorldW - logicalW);
+    camX += (followTarget - camX) * Math.min(1, dt * 6);
+
+    const catCenterX = cat.x + cw / 2, catCenterY = cat.y + catH / 2;
+    
+    for (const c of layerCoins) {
+      if (c.collected) continue;
+      if (catCenterX + 20 > c.x && catCenterX - 20 < c.x && catCenterY + 20 > c.y && catCenterY - 20 < c.y) { c.collected = true; coinCount += 1; playSound('coin'); }
+    }
+
+    // 子弹追踪玩家
+    for (let i = currentBullets.length - 1; i >= 0; i--) {
+      const b = currentBullets[i]; 
+      b.age += dt; 
+      
+      const dx = catCenterX - b.x;
+      const dy = catCenterY - b.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      const speed = CONFIG.bulletSpeed;
+      
+      b.vx += (dx / dist) * 100 * dt;
+      b.vy += (dy / dist) * 100 * dt;
+      
+      const currentSpeed = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+      if (currentSpeed > speed) {
+        b.vx = (b.vx / currentSpeed) * speed;
+        b.vy = (b.vy / currentSpeed) * speed;
+      }
+
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      
+      if (inCircle(catCenterX, catCenterY, b.x, b.y, b.r + cw / 2.5)) { san -= CONFIG.bulletExplodeDamage; shakeMagnitude = 12; currentBullets.splice(i, 1); continue; }
+      if (b.age > b.maxAge || b.x < -100 || b.x > layerWorldW + 100) currentBullets.splice(i, 1);
+    }
+    
+    for (const s of layerSpeakers) {
+      if (s.type === 'wall') {
+        s.timer -= dt;
+        if (s.timer <= 0) {
+          s.timer = s.period; 
+          const dx = catCenterX - s.x, dy = catCenterY - s.y;
+          const dist = Math.sqrt(dx*dx + dy*dy) || 1, speed = CONFIG.bulletSpeed;
+          currentBullets.push({ x: s.x, y: s.y, vx: (dx / dist) * speed, vy: (dy / dist) * speed, r: CONFIG.bulletRadius, age: 0, maxAge: 3.0 });
         }
-        return null;
+      }
     }
 
-    // ---------- 预设操作 ----------
-    function selectedPresetId() {
-        const sel = document.getElementById('presetSelect');
-        return sel ? sel.value : '';
-    }
-
-    function setPresetHint(text, kind) {
-        const el = document.getElementById('presetHint');
-        if (!el) return;
-        el.className = 'hint' + (kind === 'warn' ? ' warn' : (kind === 'error' ? ' error' : ''));
-        el.innerText = text;
-    }
-
-    function updatePresetButtons() {
-        const id = selectedPresetId();
-        const custom = !!id && !isBuiltinPreset(id);
-        const updateBtn = document.getElementById('updatePresetBtn');
-        const deleteBtn = document.getElementById('deletePresetBtn');
-        if (updateBtn) updateBtn.disabled = !custom;
-        if (deleteBtn) deleteBtn.disabled = !custom;
-    }
-
-    function syncPresetNameInput() {
-        const input = document.getElementById('presetNameInput');
-        if (!input) return;
-        const preset = findPreset(selectedPresetId());
-        input.value = (preset && !isBuiltinPreset(preset.id)) ? preset.name : '';
-    }
-
-    function renderPresetOptions(keepId) {
-        const sel = document.getElementById('presetSelect');
-        if (!sel) return;
-        const want = keepId || sel.value || '';
-        let html = '<optgroup label="内置预设">';
-        for (let i = 0; i < BUILTIN_PRESETS.length; i++) {
-            const p = BUILTIN_PRESETS[i];
-            html += '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) + '</option>';
-        }
-        html += '</optgroup>';
-        if (userPresets.length) {
-            html += '<optgroup label="自定义预设">';
-            for (let i = 0; i < userPresets.length; i++) {
-                const p = userPresets[i];
-                html += '<option value="' + escapeAttr(p.id) + '">' + escapeAttr(p.name) + '</option>';
-            }
-            html += '</optgroup>';
-        }
-        sel.innerHTML = html;
-        if (want && findPreset(want)) sel.value = want;
-        else sel.selectedIndex = 0;
-        updatePresetButtons();
-        syncPresetNameInput();
-    }
-
-    function defaultPresetName() {
-        let index = userPresets.length + 1;
-        let name = '自定义方案 ' + index;
-        while (findUserPresetByName(name)) {
-            index++;
-            name = '自定义方案 ' + index;
-        }
-        return name;
-    }
-
-    function currentTitleFromForm() {
-        const el = document.getElementById('inputTitle');
-        const v = el ? el.value.trim() : '';
-        return v || state.title || '角色属性';
-    }
-
-    function currentLabelsFromForm() {
-        const out = [];
-        for (let i = 0; i < N; i++) {
-            const el = document.getElementById('inputLabel_' + i);
-            const v = el ? el.value.trim() : '';
-            out.push(v || state.labels[i] || ('属性' + (i + 1)));
-        }
-        return out;
-    }
-
-    function currentValuesFromForm() {
-        const out = [];
-        for (let i = 0; i < N; i++) {
-            const el = document.getElementById('inputValue_' + i);
-            const v = el ? parseInt(el.value, 10) : NaN;
-            out.push(isNaN(v) ? state.values[i] : Math.max(0, Math.min(MAX_VAL, v)));
-        }
-        return out;
-    }
-
-    function applyPreset(id) {
-        const preset = findPreset(id || selectedPresetId());
-        if (!preset) return false;
-        // 只替换雷达图标题与六维条目名称，数值、角色名字、简介、形象均保持不变
-        state.title = preset.title;
-        state.labels = preset.labels.slice();
-        const titleEl = document.getElementById('inputTitle');
-        if (titleEl) titleEl.value = state.title;
-        for (let i = 0; i < N; i++) {
-            const el = document.getElementById('inputLabel_' + i);
-            if (el) el.value = state.labels[i];
-        }
-        redraw();
-        renderPresetOptions(preset.id);
-        setPresetHint('已应用预设「' + preset.name + '」：标题与六维条目已替换，数值与角色信息不变');
-        return true;
-    }
-
-    function saveCurrentPreset() {
-        const nameInput = document.getElementById('presetNameInput');
-        const typed = nameInput ? nameInput.value.trim() : '';
-        const name = typed || defaultPresetName();
-        const title = currentTitleFromForm();
-        const labels = currentLabelsFromForm();
-        const exists = findUserPresetByName(name);
-        if (exists && !window.confirm('已存在同名自定义预设「' + name + '」，是否覆盖？')) return false;
-        if (exists) {
-            exists.name = name;
-            exists.title = title;
-            exists.labels = labels;
-            saveUserPresets();
-            renderPresetOptions(exists.id);
-            setPresetHint('已更新自定义预设「' + exists.name + '」');
-            return true;
-        }
-        const preset = normalizePreset({ name: name, title: title, labels: labels });
-        userPresets.push(preset);
-        saveUserPresets();
-        renderPresetOptions(preset.id);
-        setPresetHint('已保存自定义预设「' + preset.name + '」（仅记录标题与六维条目）');
-        return true;
-    }
-
-    function updateSelectedPreset() {
-        const preset = findPreset(selectedPresetId());
-        if (!preset) return false;
-        if (isBuiltinPreset(preset.id)) {
-            setPresetHint('内置预设不可修改，请用「存为预设」另存一份。', 'warn');
-            return false;
-        }
-        const nameInput = document.getElementById('presetNameInput');
-        const name = (nameInput && nameInput.value.trim()) || preset.name;
-        if (name !== preset.name && findUserPresetByName(name, preset.id)) {
-            setPresetHint('已存在同名预设「' + name + '」，请换个名称。', 'error');
-            return false;
-        }
-        preset.name = name;
-        preset.title = currentTitleFromForm();
-        preset.labels = currentLabelsFromForm();
-        saveUserPresets();
-        renderPresetOptions(preset.id);
-        setPresetHint('已更新预设「' + preset.name + '」的标题与六维条目（可在此改名）');
-        return true;
-    }
-
-    function deletePreset() {
-        const preset = findPreset(selectedPresetId());
-        if (!preset) return false;
-        if (isBuiltinPreset(preset.id)) {
-            setPresetHint('内置预设不可删除。', 'warn');
-            return false;
-        }
-        if (!window.confirm('确定删除自定义预设「' + preset.name + '」吗？')) return false;
-        userPresets = userPresets.filter(function (p) { return p.id !== preset.id; });
-        saveUserPresets();
-        renderPresetOptions();
-        setPresetHint('已删除预设「' + preset.name + '」');
-        return true;
-    }
-
-    // ---------- 设置表单 ----------
-    function fillSettingsForm() {
-        document.getElementById('themeSelect').value = state.theme;
-        document.getElementById('inputName').value = state.charName;
-        document.getElementById('inputDesc').value = state.charDesc;
-        document.getElementById('inputTitle').value = state.title;
-        const container = document.getElementById('radarInputsContainer');
-        if (!container) return;
-        let html = '';
-        for (let i = 0; i < N; i++) {
-            html += '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-                '<input type="text" id="inputLabel_' + i + '" value="' + escapeAttr(state.labels[i]) + '" placeholder="名称">' +
-                '<input type="number" id="inputValue_' + i + '" value="' + escapeAttr(state.values[i]) + '" placeholder="数值" min="0" max="100">' +
-                '</div>';
-        }
-        container.innerHTML = html;
-    }
-
-    function readFormToState() {
-        state.theme = document.getElementById('themeSelect').value === 'light' ? 'light' : 'dark';
-        state.charName = document.getElementById('inputName').value.trim() || '未命名角色';
-        state.charDesc = document.getElementById('inputDesc').value.trim() || '暂无简介';
-        state.title = document.getElementById('inputTitle').value.trim() || '角色属性';
-        state.labels = currentLabelsFromForm();
-        state.values = currentValuesFromForm();
-    }
-
-    function openSettings() {
-        fillSettingsForm();
-        renderPresetOptions();
-        setPresetHint('预设只记录雷达图标题与六维条目名称，应用时不会改动数值、角色名字、简介与形象。');
-        settingsModal.classList.add('active');
-    }
-
-    function closeSettings() { settingsModal.classList.remove('active'); }
-
-    function changeTheme(val) {
-        state.theme = val === 'light' ? 'light' : 'dark';
-        redraw();
-    }
-
-    // 顶栏快捷切换主题（与设置里的下拉框保持同步）
-    function toggleTheme() {
-        state.theme = state.theme === 'light' ? 'dark' : 'light';
-        const sel = document.getElementById('themeSelect');
-        if (sel) sel.value = state.theme;
-        redraw();
-        showToast(state.theme === 'light' ? '已切换到浅色模式' : '已切换到深色模式');
-    }
-
-    // 快捷填充六维数值：随机 / 统一重置
-    function randomizeValues() {
-        for (let i = 0; i < N; i++) {
-            const v = 20 + Math.floor(Math.random() * 81);
-            const el = document.getElementById('inputValue_' + i);
-            if (el) el.value = String(v);
-            state.values[i] = v;
-        }
-        redraw();
-        showToast('已随机生成六维数值');
-    }
-
-    function resetAllValues() {
-        for (let i = 0; i < N; i++) {
-            const el = document.getElementById('inputValue_' + i);
-            if (el) el.value = '50';
-            state.values[i] = 50;
-        }
-        redraw();
-        showToast('六维数值已重置为 50');
-    }
-
-    function saveSettings() {
-        readFormToState();
-        redraw();
-        closeSettings();
-        showToast('设置已保存');
-    }
-
-    // ---------- 绘图 ----------
-    function getRadarPalette() {
-        const isDark = state.theme === 'dark';
-        return {
-            text: isDark ? '#c8d8ff' : '#2a3a5a',
-            grid: isDark ? '#2a3a5a' : '#c0d0f0',
-            axis: isDark ? '#3a4a6a' : '#a0b0d0',
-            accent: '#4f9eff',
-            fill: 'rgba(79, 158, 255, 0.25)'
-        };
-    }
-
-    function vertexPosAt(idx, val, centerX, centerY, rad) {
-        const angle = 2 * Math.PI * idx / N - Math.PI / 2;
-        const r = (val / MAX_VAL) * rad;
-        return { x: centerX + r * Math.cos(angle), y: centerY + r * Math.sin(angle) };
-    }
-
-    // 屏幕渲染与图片导出共用这套雷达绘制逻辑
-    function drawRadar(target, centerX, centerY, rad, labelOffset, palette) {
-        const colors = palette || getRadarPalette();
-        const labels = state.labels;
-        const values = state.values;
-
-        target.strokeStyle = colors.grid;
-        target.lineWidth = 1;
-        for (let level = 1; level <= 5; level++) {
-            const r = rad * level / 5;
-            target.beginPath();
-            for (let i = 0; i <= N; i++) {
-                const a = 2 * Math.PI * (i % N) / N - Math.PI / 2;
-                const x = centerX + r * Math.cos(a);
-                const y = centerY + r * Math.sin(a);
-                if (i === 0) target.moveTo(x, y);
-                else target.lineTo(x, y);
-            }
-            target.closePath();
-            target.stroke();
-        }
-
-        target.fillStyle = colors.text;
-        const fontSize = Math.max(12, Math.min(20, Math.round(rad * 0.12)));
-        target.font = 'bold ' + fontSize + 'px sans-serif';
-        target.textAlign = 'center';
-        target.textBaseline = 'middle';
-
-        for (let i = 0; i < N; i++) {
-            const a = 2 * Math.PI * i / N - Math.PI / 2;
-            const ex = centerX + rad * Math.cos(a);
-            const ey = centerY + rad * Math.sin(a);
-
-            target.strokeStyle = colors.axis;
-            target.beginPath();
-            target.moveTo(centerX, centerY);
-            target.lineTo(ex, ey);
-            target.stroke();
-
-            const lx = centerX + (rad + labelOffset) * Math.cos(a);
-            const ly = centerY + (rad + labelOffset) * Math.sin(a);
-            target.fillText(labels[i], lx, ly);
-        }
-
-        target.beginPath();
-        for (let i = 0; i < N; i++) {
-            const pos = vertexPosAt(i, values[i], centerX, centerY, rad);
-            if (i === 0) target.moveTo(pos.x, pos.y);
-            else target.lineTo(pos.x, pos.y);
-        }
-        target.closePath();
-        target.fillStyle = colors.fill;
-        target.fill();
-        target.strokeStyle = colors.accent;
-        target.lineWidth = Math.max(2, Math.round(rad * 0.015));
-        target.stroke();
-
-        const dotRadius = Math.max(6, Math.round(rad * 0.06));
-        for (let i = 0; i < N; i++) {
-            const pos = vertexPosAt(i, values[i], centerX, centerY, rad);
-            target.beginPath();
-            target.arc(pos.x, pos.y, dotRadius, 0, Math.PI * 2);
-            target.fillStyle = '#ffffff';
-            target.fill();
-            target.beginPath();
-            target.arc(pos.x, pos.y, dotRadius * 0.7, 0, Math.PI * 2);
-            target.fillStyle = colors.accent;
-            target.fill();
-            target.beginPath();
-            target.arc(pos.x, pos.y, dotRadius * 0.3, 0, Math.PI * 2);
-            target.fillStyle = '#eef7ff';
-            target.fill();
-        }
-    }
-
-    function redraw() {
-        document.body.setAttribute('data-theme', state.theme);
-        document.getElementById('displayTitle').innerText = state.title;
-        document.getElementById('displayName').innerText = state.charName;
-        document.getElementById('displayDesc').innerText = state.charDesc;
-        document.getElementById('settingsBtn').style.display = state.settingsVisible ? 'block' : 'none';
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawRadar(ctx, cx, cy, radius, textOffset);
-    }
-
-    function resizeCanvas() {
-        const container = canvas.parentElement;
-        const rect = container.getBoundingClientRect();
-        const size = Math.max(200, Math.min(rect.width, rect.height));
-        const dpr = window.devicePixelRatio || 1;
-
-        canvas.width = size * dpr;
-        canvas.height = size * dpr;
-        canvas.style.width = size + 'px';
-        canvas.style.height = size + 'px';
-
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr, dpr);
-
-        cx = size / 2;
-        cy = size / 2;
-        radius = size * 0.32;
-        textOffset = size * 0.10;
-
-        redraw();
-    }
-
-    const resizeObserver = new ResizeObserver(function () { resizeCanvas(); });
-    resizeObserver.observe(document.querySelector('.canvas-container'));
-    resizeCanvas();
-
-    // ---------- 拖拽调整数值 ----------
-    function getCanvasPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return {
-            x: (clientX - rect.left) * (canvas.width / rect.width) / (window.devicePixelRatio || 1),
-            y: (clientY - rect.top) * (canvas.height / rect.height) / (window.devicePixelRatio || 1)
-        };
-    }
-
-    function onPointerDown(e) {
-        e.preventDefault();
-        const pos = getCanvasPos(e);
-        const hitRadius = Math.max(20, radius * 0.15);
-        for (let i = 0; i < N; i++) {
-            const v = vertexPosAt(i, state.values[i], cx, cy, radius);
-            const dist = Math.hypot(pos.x - v.x, pos.y - v.y);
-            if (dist <= hitRadius) { draggingIdx = i; break; }
-        }
-    }
-
-    function onPointerMove(e) {
-        if (draggingIdx === null) return;
-        e.preventDefault();
-        const pos = getCanvasPos(e);
-        const a = 2 * Math.PI * draggingIdx / N - Math.PI / 2;
-        let proj = (pos.x - cx) * Math.cos(a) + (pos.y - cy) * Math.sin(a);
-        proj = Math.max(0, Math.min(radius, proj));
-        state.values[draggingIdx] = Math.round((proj / radius) * MAX_VAL);
-        redraw();
-    }
-
-    function onPointerUp() { draggingIdx = null; }
-
-    canvas.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('mousemove', onPointerMove);
-    window.addEventListener('mouseup', onPointerUp);
-    canvas.addEventListener('touchstart', onPointerDown, { passive: false });
-    window.addEventListener('touchmove', onPointerMove, { passive: false });
-    window.addEventListener('touchend', onPointerUp);
-
-    // ---------- 图片导出 ----------
-    function getExportPalette(theme) {
-        const dark = theme !== 'light';
-        return dark ? {
-            bg: '#0b0e1a', card: '#101728', panel: '#151d31', border: '#2a3a5a',
-            titleBg: '#1e2a44', text: '#e0ecff', sub: '#8f9bb5', accent: '#4f9eff'
-        } : {
-            bg: '#eef3f9', card: '#ffffff', panel: '#f7fafe', border: '#c0d0f0',
-            titleBg: '#e8eef7', text: '#1a2a3a', sub: '#6a7a8a', accent: '#2f7fe0'
-        };
-    }
-
-    function roundRectPath(target, x, y, w, h, r) {
-        const rr = Math.max(0, Math.min(r, w / 2, h / 2));
-        target.beginPath();
-        target.moveTo(x + rr, y);
-        target.lineTo(x + w - rr, y);
-        target.arcTo(x + w, y, x + w, y + rr, rr);
-        target.lineTo(x + w, y + h - rr);
-        target.arcTo(x + w, y + h, x + w - rr, y + h, rr);
-        target.lineTo(x + rr, y + h);
-        target.arcTo(x, y + h, x, y + h - rr, rr);
-        target.lineTo(x, y + rr);
-        target.arcTo(x, y, x + rr, y, rr);
-        target.closePath();
-    }
-
-    function clipText(target, text, maxWidth) {
-        let out = String(text === undefined || text === null ? '' : text);
-        if (target.measureText(out).width <= maxWidth) return out;
-        while (out.length > 1 && target.measureText(out + '…').width > maxWidth) {
-            out = out.slice(0, -1);
-        }
-        return out + '…';
-    }
-
-    function wrapTextLines(target, text, maxWidth, maxLines) {
-        const src = String(text === undefined || text === null ? '' : text).trim();
-        if (!src) return [];
-        const lines = [];
-        let line = '';
-        for (let i = 0; i < src.length; i++) {
-            const next = line + src.charAt(i);
-            if (line && target.measureText(next).width > maxWidth) {
-                lines.push(line);
-                line = src.charAt(i);
-            } else {
-                line = next;
-            }
-        }
-        if (line) lines.push(line);
-        if (lines.length <= maxLines) return lines;
-        const kept = lines.slice(0, maxLines);
-        let last = kept[maxLines - 1];
-        while (last.length > 1 && target.measureText(last + '…').width > maxWidth) {
-            last = last.slice(0, -1);
-        }
-        kept[maxLines - 1] = last + '…';
-        return kept;
-    }
-
-    function drawPortrait(target, img, x, y, w, h, r, colors) {
-        target.save();
-        roundRectPath(target, x, y, w, h, r);
-        target.clip();
-        target.fillStyle = colors.titleBg;
-        target.fillRect(x, y, w, h);
-
-        const ready = !!img && img.complete && img.naturalWidth > 0;
-        if (ready) {
-            const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-            const dw = img.naturalWidth * scale;
-            const dh = img.naturalHeight * scale;
-            target.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+    for (const s of layerSpeakers) {
+      if (s.type === 'stone') {
+        s.pulseTimer -= dt;
+        if (s.pulseActive) {
+          s.pulseLife += dt; s.pulseR = s.r * (s.pulseLife / CONFIG.stonePulseDuration); s.pulseAlpha = Math.max(0, 1 - s.pulseLife / CONFIG.stonePulseDuration);
+          if (s.pulseLife >= CONFIG.stonePulseDuration) { s.pulseActive = false; s.pulseR = 0; s.pulseAlpha = 0; }
         } else {
-            const icx = x + w / 2;
-            const icy = y + h / 2 - 20;
-            target.strokeStyle = colors.accent;
-            target.lineWidth = 3;
-            roundRectPath(target, icx - 32, icy - 32, 64, 64, 12);
-            target.stroke();
-            target.beginPath();
-            target.arc(icx - 12, icy - 12, 5, 0, Math.PI * 2);
-            target.fillStyle = colors.accent;
-            target.fill();
-            target.beginPath();
-            target.moveTo(icx - 30, icy + 28);
-            target.lineTo(icx - 4, icy + 2);
-            target.lineTo(icx + 30, icy + 30);
-            target.stroke();
-            target.fillStyle = colors.sub;
-            target.textAlign = 'center';
-            target.textBaseline = 'middle';
-            target.font = 'bold 15px -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif';
-            target.fillText('暂无角色形象', icx, icy + 62);
+          if (s.pulseTimer <= 0) { s.pulseActive = true; s.pulseTimer = CONFIG.stonePulsePeriod; s.pulseLife = 0; s.pulseR = 0; s.pulseAlpha = 1; }
         }
-        target.restore();
-
-        target.strokeStyle = colors.border;
-        target.lineWidth = 2;
-        roundRectPath(target, x, y, w, h, r);
-        target.stroke();
+      }
     }
 
-    function drawExportPanel(target, colors, img) {
-        const fontFamily = '-apple-system, "Segoe UI", "Microsoft YaHei", sans-serif';
-
-        // 底板
-        target.fillStyle = colors.bg;
-        target.fillRect(0, 0, EXPORT_W, EXPORT_H);
-        target.fillStyle = colors.card;
-        roundRectPath(target, 24, 24, 912, 652, 28);
-        target.fill();
-        target.strokeStyle = colors.border;
-        target.lineWidth = 1.5;
-        target.stroke();
-
-        // 左侧：角色形象 + 名字简介
-        drawPortrait(target, img, 56, 52, 304, 520, 28, colors);
-
-        target.fillStyle = colors.titleBg;
-        roundRectPath(target, 56, 584, 304, 80, 20);
-        target.fill();
-
-        target.textAlign = 'center';
-        target.textBaseline = 'middle';
-        target.fillStyle = colors.text;
-        target.font = 'bold 22px ' + fontFamily;
-        target.fillText(clipText(target, state.charName || '未命名角色', 264), 208, 612);
-
-        target.fillStyle = colors.sub;
-        target.font = '14px ' + fontFamily;
-        const descLines = wrapTextLines(target, state.charDesc || '暂无简介', 264, 2);
-        for (let i = 0; i < descLines.length; i++) {
-            target.fillText(descLines[i], 208, 634 + i * 18);
-        }
-
-        // 右侧：标题 + 雷达图
-        target.fillStyle = colors.panel;
-        roundRectPath(target, 384, 52, 528, 612, 24);
-        target.fill();
-        target.strokeStyle = colors.border;
-        target.lineWidth = 1.5;
-        target.stroke();
-
-        target.fillStyle = colors.text;
-        target.font = 'bold 24px ' + fontFamily;
-        target.textAlign = 'center';
-        target.textBaseline = 'middle';
-        target.fillText(clipText(target, state.title || '角色属性', 440), 648, 96);
-
-        drawRadar(target, 648, 396, 172, 54, {
-            text: colors.text,
-            grid: colors.border,
-            axis: colors.border,
-            accent: colors.accent,
-            fill: 'rgba(79, 158, 255, 0.25)'
-        });
+    let inNoise = false;
+    for (const h of getActiveHitboxes()) { if (inCircle(catCenterX, catCenterY, h.cx, h.cy, h.r)) { inNoise = true; break; } }
+    
+    if (inNoise) { 
+      san -= CONFIG.sanDamage * dt; 
+      if (Math.random() < 0.1) { playSound('hurt'); shakeMagnitude = 6; } 
+    } else { 
+      // 不在噪音中恢复 SAN；靠近掩体时恢复更快（掩体是安全点）
+      let nearCover = false;
+      for(const c of layerCovers) {
+        if (Math.abs((cat.x + cw/2) - (c.x + c.w/2)) < 100) { nearCover = true; break; }
+      }
+      san += CONFIG.sanRecover * (nearCover ? 1.8 : 1) * dt; 
     }
+    san -= currentSanDrain * dt;
+    san = clamp(san, 0, CONFIG.sanMax);
 
-    function loadImageForExport(src) {
-        return new Promise(function (resolve) {
-            if (!src) { resolve(null); return; }
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = function () { resolve(img); };
-            img.onerror = function () { resolve(null); };
-            img.src = src;
-        });
+    if (san <= 0) { triggerGameOver(); return; }
+
+    const vs = layerSeat;
+    if (cat.x + cw > vs.x && cat.x < vs.x + vs.w && cat.y + catH > vs.y && cat.y < vs.y + vs.h) startTransition();
+  }
+
+  function startTransition() {
+    state = 'transition'; currentScenery = sceneryFor(layer);
+    transition = { active: true, phase: 'camera', t: 0, camFrom: camX, camTo: clamp(layerSeat.x - logicalW * 0.5, 0, layerWorldW - logicalW) };
+  }
+
+  function updateTransition(dt) {
+    time += dt; transition.t += dt;
+    if (transition.phase === 'camera') {
+      const k = Math.min(1, transition.t / 0.9), e = 1 - Math.pow(1-k, 3);
+      camX = transition.camFrom + (transition.camTo - transition.camFrom) * e;
+      if (k >= 1) { transition.phase = 'sunset'; transition.t = 0; }
+    } else if (transition.phase === 'sunset') {
+      if (transition.t >= 3.2) { transition.phase = 'blackout'; transition.t = 0; }
+    } else if (transition.phase === 'blackout') {
+      if (transition.t >= 1.4) {
+        layer++; generateLayer(layer);
+        cat = { x: CONFIG.startX, y: -100, vx: 0, vy: 0, onGround: false, facing: 1, wobble: 0 };
+        san = CONFIG.sanMax; camX = 0; time = 0;
+        transition = { active:false, phase:'none', t:0, camFrom:0, camTo:0 };
+        state = 'play';
+      }
     }
+  }
 
-    function exportPanelImage() {
-        const filename = safeFileName(state.charName || state.title) + '_' + timeStamp() + '.png';
-        loadImageForExport(state.imgSrc).then(function (img) {
-            const out = document.createElement('canvas');
-            out.width = EXPORT_W * EXPORT_SCALE;
-            out.height = EXPORT_H * EXPORT_SCALE;
-            const outCtx = out.getContext('2d');
-            outCtx.scale(EXPORT_SCALE, EXPORT_SCALE);
-            drawExportPanel(outCtx, getExportPalette(state.theme), img);
+  function drawNoise() { ctx.save(); ctx.fillStyle = `rgba(0, 0, 0, ${0.05 + redT * 0.15})`; ctx.fillRect(0, 0, logicalW, logicalH); ctx.restore(); }
+  function sx(x) { return x - camX; }
 
-            try {
-                downloadDataUrl(out.toDataURL('image/png'), filename);
-                showToast('图片已导出：' + filename);
-            } catch (err) {
-                if (typeof out.toBlob === 'function') {
-                    out.toBlob(function (blob) {
-                        if (!blob) { showToast('图片导出失败，请重试'); return; }
-                        downloadBlob(blob, filename);
-                        showToast('图片已导出：' + filename);
-                    }, 'image/png');
-                } else {
-                    showToast('图片导出失败：当前浏览器不支持');
-                }
-            }
-        });
+  function drawSkyGround() {
+    const g = ctx.createLinearGradient(0,0,0,logicalH * 0.82);
+    g.addColorStop(0, rgb(colorAt('skyTop', redT)));
+    g.addColorStop(1, rgb(colorAt('skyBottom', redT)));
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,logicalW,logicalH * 0.82);
+
+    const mountainCount = Math.max(2, 6 - Math.floor(redT * 4));
+    ctx.fillStyle = rgba(lerpColor([120,120,120], [150,60,60], redT), 0.35 + redT * 0.15);
+    for (let i=0;i<mountainCount;i++){
+      const bx = ((i*420 - camX*0.3) % (logicalW + 600)) - 300;
+      ctx.beginPath(); ctx.moveTo(bx, logicalH * 0.82); ctx.lineTo(bx+180, logicalH * 0.82-140); ctx.lineTo(bx+360, logicalH * 0.82); ctx.closePath(); ctx.fill();
     }
+  }
 
-    // ---------- JSON 导入导出 ----------
-    function buildPanelPayload() {
-        return {
-            app: 'SuperCreator',
-            type: 'character-radar-panel',
-            version: 1,
-            savedAt: new Date().toISOString(),
-            title: state.title,
-            theme: state.theme,
-            character: { name: state.charName, desc: state.charDesc },
-            labels: state.labels.slice(),
-            values: state.values.slice(),
-            image: { data: state.imgSrc, ref: state.imgRef }
-        };
+  // 绘制连续起伏的地形和浮空岛
+  function drawPlatforms() {
+    const gt = colorAt('groundTop', redT), gb = colorAt('groundBot', redT);
+    for (const p of layerPlatforms) {
+      const x = sx(p.x);
+      if (x + p.w < -100 || x > logicalW + 100) continue;
+      
+      if (p.isFloat) {
+        // 浮空岛：倒梯形
+        ctx.fillStyle = rgb(gt);
+        ctx.beginPath();
+        ctx.moveTo(x, p.y);
+        ctx.lineTo(x + p.w, p.y);
+        ctx.lineTo(x + p.w - 20, p.y + 30);
+        ctx.lineTo(x + 20, p.y + 30);
+        ctx.closePath();
+        ctx.fill();
+
+        // 底部阴影
+        ctx.fillStyle = rgba(gb, 0.5);
+        ctx.beginPath();
+        ctx.moveTo(x + 20, p.y + 30);
+        ctx.lineTo(x + p.w - 20, p.y + 30);
+        ctx.lineTo(x + p.w / 2, p.y + 50);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.2)'; 
+        ctx.fillRect(x, p.y, p.w, 4);
+      } else {
+        // 地面
+        const g = ctx.createLinearGradient(0, p.y, 0, logicalH);
+        g.addColorStop(0, rgb(gt)); g.addColorStop(1, rgb(gb));
+        ctx.fillStyle = g; ctx.fillRect(x, p.y, p.w, logicalH - p.y);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(x, p.y, p.w, 4);
+      }
     }
+  }
 
-    function exportJson() {
-        const text = JSON.stringify(buildPanelPayload(), null, 2);
-        const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
-        const filename = safeFileName(state.charName || state.title) + '_' + timeStamp() + '.json';
-        downloadBlob(blob, filename);
-        showToast('JSON 已导出：' + filename);
+  function drawVoidSpikes() {
+    for (const s of voidSpikes) {
+      const x = sx(s.x);
+      if (x < -100 || x > logicalW + 100) continue;
+      const alpha = s.life / 0.5;
+      ctx.fillStyle = `rgba(80, 0, 0, ${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(x, logicalH);
+      ctx.lineTo(x + 20, logicalH - s.h);
+      ctx.lineTo(x + 40, logicalH);
+      ctx.closePath();
+      ctx.fill();
     }
+  }
 
-    function importJsonClick() {
-        if (!jsonInput) return;
-        jsonInput.value = '';
-        jsonInput.click();
+  function drawCovers() {
+    for (const c of layerCovers) {
+      const x = sx(c.x);
+      if (x + c.w < -100 || x > logicalW + 100) continue;
+      if (c.broken) {
+        ctx.fillStyle = '#5a5a5a'; ctx.beginPath(); ctx.arc(x + c.w/3, c.y + c.h - 10, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#4a4a4a'; ctx.beginPath(); ctx.arc(x + c.w*0.7, c.y + c.h - 6, 6, 0, Math.PI*2); ctx.fill(); continue;
+      }
+      const centerX = x + c.w/2, centerY = c.y + c.h/2, radius = c.w / 2;
+      ctx.fillStyle = '#6a6a6a'; ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, Math.PI*2); ctx.fill();
+      const grad = ctx.createRadialGradient(centerX - radius*0.3, centerY - radius*0.3, radius*0.1, centerX, centerY, radius);
+      grad.addColorStop(0, 'rgba(255,255,255,0.2)'); grad.addColorStop(0.6, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.4)');
+      ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, Math.PI*2); ctx.fill();
     }
+  }
 
-    function sanitizePanelData(raw) {
-        if (!raw || typeof raw !== 'object') return null;
-        const labels = Array.isArray(raw.labels) ? raw.labels : [];
-        const values = Array.isArray(raw.values) ? raw.values : [];
-        if (!labels.length || !values.length) return null;
-
-        const outLabels = [];
-        const outValues = [];
-        for (let i = 0; i < N; i++) {
-            const l = labels[i] === undefined || labels[i] === null ? '' : String(labels[i]).trim();
-            outLabels.push(l || ('属性' + (i + 1)));
-            const v = parseInt(values[i], 10);
-            outValues.push(isNaN(v) ? 0 : Math.max(0, Math.min(MAX_VAL, v)));
-        }
-
-        const character = (raw.character && typeof raw.character === 'object') ? raw.character : {};
-        const image = (raw.image && typeof raw.image === 'object') ? raw.image : {};
-
-        const pickText = function (value, fallback) {
-            const t = String(value === undefined || value === null ? '' : value).trim();
-            return t || fallback;
-        };
-
-        return {
-            title: pickText(raw.title, '角色属性'),
-            theme: raw.theme === 'light' ? 'light' : 'dark',
-            charName: pickText(character.name, '未命名角色'),
-            charDesc: pickText(character.desc, '暂无简介'),
-            labels: outLabels,
-            values: outValues,
-            imgSrc: typeof image.data === 'string' ? image.data : '',
-            imgRef: typeof image.ref === 'string' ? image.ref : ''
-        };
+  function drawCoins() {
+    for (const c of layerCoins) {
+      if (c.collected) continue;
+      const x = sx(c.x);
+      if (x < -50 || x > logicalW + 50) continue;
+      if (images.coin) ctx.drawImage(images.coin, x - 16, c.y - 16, 32, 32);
+      else {
+        ctx.save(); ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(x, c.y, 16, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#d4ac0d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, c.y, 12, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = '#d4ac0d'; ctx.font = 'bold 16px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', x, c.y + 1);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
+      }
+      const glow = 0.5 + Math.sin(time * 5 + c.x) * 0.5;
+      ctx.fillStyle = `rgba(241, 196, 15, ${glow * 0.2})`; ctx.beginPath(); ctx.arc(x, c.y, 24, 0, Math.PI*2); ctx.fill();
     }
+  }
 
-    function applyPanelData(data) {
-        state.title = data.title;
-        state.theme = data.theme;
-        state.charName = data.charName;
-        state.charDesc = data.charDesc;
-        state.labels = data.labels.slice();
-        state.values = data.values.slice();
-        state.imgSrc = data.imgSrc || '';
-        state.imgRef = data.imgRef || '';
-        syncImagePanel();
-        fillSettingsForm();
-        renderPresetOptions();
-        redraw();
+  function drawSpeaker(s) {
+    const x = sx(s.x);
+    if (x < -160 || x > logicalW + 160) return;
+    
+    if (s.type === 'wall') {
+      ctx.fillStyle = '#b0b0b0'; ctx.beginPath(); ctx.moveTo(x - 20, s.y - 30); ctx.lineTo(x + 20, s.y - 30); ctx.lineTo(x + 25, s.y + 30); ctx.lineTo(x - 15, s.y + 30); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8e8e8'; ctx.beginPath(); ctx.moveTo(x - 25, s.y - 35); ctx.lineTo(x + 15, s.y - 35); ctx.lineTo(x + 20, s.y + 25); ctx.lineTo(x - 20, s.y + 25); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#666'; ctx.beginPath(); ctx.moveTo(x - 15, s.y - 25); ctx.lineTo(x + 8, s.y - 25); ctx.lineTo(x + 12, s.y + 15); ctx.lineTo(x - 11, s.y + 15); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f0f0f0'; ctx.beginPath(); ctx.ellipse(x - 5, s.y - 30, 10, 6, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#333'; ctx.beginPath(); ctx.ellipse(x - 5, s.y - 30, 5, 3, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x - 5, s.y - 35); ctx.lineTo(x - 5, 0); ctx.stroke();
+    } else {
+      const w = s.w, h = s.h;
+      const cx = x, cy = s.groundY; 
+      ctx.fillStyle = '#72756c'; ctx.beginPath(); ctx.moveTo(cx - w*0.48, cy); ctx.lineTo(cx - w*0.52, cy - h*0.35); ctx.lineTo(cx - w*0.3, cy - h*0.9); ctx.lineTo(cx + w*0.15, cy - h*0.98); ctx.lineTo(cx + w*0.4, cy - h*0.7); ctx.lineTo(cx + w*0.5, cy - h*0.2); ctx.lineTo(cx + w*0.45, cy); ctx.closePath(); ctx.fill();
+      const grad = ctx.createLinearGradient(cx, cy - h, cx, cy); grad.addColorStop(0, 'rgba(255,255,255,0.15)'); grad.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = grad; ctx.fill();
+      const holes = [{x: -0.1, y: -0.6, s: 1.2}, {x: 0.05, y: -0.55, s: 1}, {x: -0.2, y: -0.45, s: 0.8}, {x: -0.05, y: -0.4, s: 1.1}, {x: 0.1, y: -0.35, s: 0.9}, {x: -0.25, y: -0.3, s: 0.7}, {x: -0.15, y: -0.2, s: 1}, {x: 0, y: -0.15, s: 0.8}, {x: 0.15, y: -0.2, s: 1.1}, {x: 0.25, y: -0.35, s: 0.6}];
+      ctx.fillStyle = '#1c1c1c'; for (const hole of holes) { const holeX = cx + hole.x * w; const holeY = cy + hole.y * h; ctx.beginPath(); const hs = 4 * hole.s; ctx.moveTo(holeX - hs, holeY); ctx.lineTo(holeX - hs*0.5, holeY - hs); ctx.lineTo(holeX + hs*0.5, holeY - hs*0.8); ctx.lineTo(holeX + hs, holeY); ctx.lineTo(holeX + hs*0.6, holeY + hs*0.8); ctx.lineTo(holeX - hs*0.6, holeY + hs); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle = 'rgba(100, 130, 80, 0.4)'; ctx.beginPath(); ctx.ellipse(cx - w*0.35, cy - h*0.15, 12, 8, 0.5, 0, Math.PI*2); ctx.fill();
     }
+  }
 
-    function importJsonText(text, fileName) {
-        let raw = null;
-        try {
-            raw = JSON.parse(text);
-        } catch (err) {
-            showToast('JSON 解析失败：文件格式不正确');
-            return false;
-        }
-        const data = sanitizePanelData(raw);
-        if (!data) {
-            showToast('JSON 内容不完整：需要 labels 与 values');
-            return false;
-        }
-        applyPanelData(data);
-        showToast('已导入 ' + (fileName || 'JSON'));
-        return true;
+  function drawStampObstacle() {
+    if (!stampObstacle) return;
+    const x = sx(stampObstacle.x);
+    if (x + stampObstacle.w < -100 || x > logicalW + 100) return;
+    if (stampObstacle.state === 'warn') {
+      ctx.save(); ctx.strokeStyle = `rgba(255, 50, 50, ${0.5 + Math.sin(time * 20) * 0.5})`; ctx.lineWidth = 4; ctx.setLineDash([10, 10]); ctx.strokeRect(x, stampObstacle.targetY - 10, stampObstacle.w, 10);
+    } else if (stampObstacle.state === 'drop') {
+      ctx.save(); const dropY = stampObstacle.y; ctx.fillStyle = '#cc2222'; ctx.beginPath(); ctx.rect(x + stampObstacle.w*0.3, dropY - 60, stampObstacle.w*0.4, 40); ctx.rect(x, dropY, stampObstacle.w, 80); ctx.fill();
+      ctx.fillStyle = '#ff4444'; ctx.fillRect(x, dropY + 70, stampObstacle.w, 10); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(x + 5, dropY + 5, stampObstacle.w - 10, 10); ctx.restore();
+    } else if (stampObstacle.state === 'impact') {
+      ctx.save(); const alpha = stampObstacle.timer / 0.5; ctx.fillStyle = `rgba(200, 20, 20, ${alpha * 0.6})`; ctx.beginPath(); ctx.ellipse(x + stampObstacle.w/2, stampObstacle.targetY - 10, stampObstacle.w/2 + (1 - alpha) * 100, 30 + (1-alpha)*30, 0, 0, Math.PI*2); ctx.fill();
+      for(let i=0; i<8; i++){ const px = x + stampObstacle.w/2 + randRange(-60, 60); const py = stampObstacle.targetY - 10 - randRange(0, 80) * alpha; ctx.fillStyle = `rgba(200, 20, 20, ${alpha})`; ctx.beginPath(); ctx.arc(px, py, randRange(2,6), 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = `rgba(150, 10, 10, ${alpha * 0.3})`; ctx.fillRect(x, stampObstacle.targetY - 10, stampObstacle.w, 10); ctx.restore();
     }
+  }
 
-    // ---------- 角色图片 ----------
-    function syncImagePanel() {
-        if (state.imgSrc) {
-            if (displayImage.getAttribute('src') !== state.imgSrc) displayImage.src = state.imgSrc;
-            displayImage.style.display = 'block';
-            placeholder.style.display = 'none';
-        } else {
-            displayImage.removeAttribute('src');
-            displayImage.style.display = 'none';
-            placeholder.style.display = 'flex';
-        }
+  function drawHitboxes() {
+    const wc = colorAt('wave', redT);
+    for (const b of currentBullets) { const x = sx(b.x); if (x + b.r < 0 || x - b.r > logicalW) continue; ctx.save(); ctx.fillStyle = rgba(wc, 0.2); ctx.beginPath(); ctx.arc(x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = rgba(wc, 0.8); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, b.y, b.r, 0, Math.PI*2); ctx.stroke(); ctx.restore(); }
+    for (const s of layerSpeakers) { if (s.type === 'stone' && s.pulseActive) { const x = sx(s.x); if (x + s.pulseR < 0 || x - s.pulseR > logicalW) continue; ctx.save(); ctx.strokeStyle = rgba(wc, 0.5 * s.pulseAlpha); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, s.y, s.pulseR, 0, Math.PI*2); ctx.stroke(); ctx.restore(); } }
+  }
+
+  function drawSeatBase(x, y, w, fill, stroke) {
+    ctx.fillStyle = fill; ctx.fillRect(x, y+30, w, 10); ctx.fillRect(x+6, y+40, 6, 20); ctx.fillRect(x+w-12, y+40, 6, 20); ctx.fillRect(x, y, 10, 40);
+    ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x-10, y+10); ctx.lineTo(x+w+10, y+10); ctx.stroke();
+  }
+
+  function drawViewSeat() {
+    const v = layerSeat, x = sx(v.x);
+    if (x + v.w < -100 || x > logicalW + 100) return;
+    drawSeatBase(x, v.y, v.w, '#4a4a4a', rgb(colorAt('accent', redT)));
+    ctx.fillStyle = rgba(colorAt('ui', redT), 0.6); ctx.font = '12px system-ui'; ctx.fillText('望景位', x+4, v.y-12);
+  }
+
+  function drawCat() {
+    const cw = CONFIG.catW, ch = CONFIG.catH, baseX = sx(cat.x);
+    ctx.save(); const cx = baseX + cw/2, footY = cat.y + ch; ctx.translate(cx, footY); ctx.rotate(cat.wobble); ctx.translate(-cw/2, -ch);
+    if (images.cat) ctx.drawImage(images.cat, 0, 0, cw, ch);
+    else {
+      ctx.fillStyle = '#111'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(cw/2, ch*0.62, cw*0.3, ch*0.3, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cw*0.65, ch*0.35, ch*0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cw*0.55, ch*0.25); ctx.lineTo(cw*0.6, ch*0.05); ctx.lineTo(cw*0.7, ch*0.25); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cw*0.7, ch*0.35, 4, 0, Math.PI*2); ctx.fill();
     }
+    ctx.restore();
+  }
 
-    function openImageSourceModal() {
-        const urlInput = document.getElementById('inputImageUrl');
-        if (urlInput) urlInput.value = state.imgRef || '';
-        imageSourceModal.classList.add('active');
-    }
+  function drawHUD() {
+    const uiC = colorAt('ui', redT);
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(20, 16, 150, 26); ctx.fillStyle = rgb(uiC); ctx.font = '14px system-ui'; ctx.fillText('第 ' + layer + ' 层循环', 30, 34);
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(logicalW - 120, 16, 100, 26); ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 16px system-ui'; ctx.textAlign = 'right'; ctx.fillText('💰 ' + coinCount, logicalW - 30, 35); ctx.textAlign = 'left';
+    const x = 20, y = 56, w = 220, h = 16;
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(x, y, w, h);
+    const p = san / CONFIG.sanMax; const barColor = lerpColor([220,50,50], [255,255,255], Math.pow(p, 2)); ctx.fillStyle = rgb(barColor); ctx.fillRect(x, y, w * p, h);
+    ctx.strokeStyle = rgb(uiC); ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); ctx.fillStyle = rgb(uiC); ctx.font = '12px system-ui'; ctx.fillText('SAN 值', x, y-5);
+    if (currentSanDrain > 0) { ctx.fillStyle = rgba([255,80,80], 0.7 + Math.sin(time * 5) * 0.3); ctx.font = '11px system-ui'; ctx.fillText('SAN 正在流失', x + w + 10, y + 13); }
+    if (san < 30) { const pulse = (Math.sin(time * 10) * 0.5 + 0.5) * 0.3; ctx.fillStyle = `rgba(255, 0, 0, ${pulse})`; ctx.fillRect(0, 0, logicalW, logicalH); }
+  }
 
-    function closeImageSourceModal() { imageSourceModal.classList.remove('active'); }
+  function drawPauseOverlay() {
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, logicalW, logicalH);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '28px system-ui'; ctx.fillText('已暂停 · 按 P 或点「暂停」继续', logicalW / 2, logicalH / 2); ctx.textAlign = 'left';
+  }
 
-    function applyImageUrl() {
-        const input = document.getElementById('inputImageUrl');
-        const url = input ? input.value.trim() : '';
-        if (!url) { showToast('请输入图片链接'); return false; }
-        state.imgSrc = url;
-        state.imgRef = url;
-        syncImagePanel();
-        closeImageSourceModal();
-        showToast('已应用网络图片');
-        return true;
-    }
+  function drawTransition() {
+    const v = layerSeat, seatScreenX = v.x - camX;
+    const sunsetT = transition.phase === 'sunset' ? Math.min(1, transition.t / 3.2) : (transition.phase === 'blackout' ? 1 : 0);
+    const g = ctx.createLinearGradient(0,0,0,logicalH); g.addColorStop(0, rgb(lerpColor(colorAt('skyTop', redT), [30,10,10], sunsetT))); g.addColorStop(0.6, rgb(lerpColor(colorAt('skyBottom', redT), [160,50,40], sunsetT))); g.addColorStop(1, '#111'); ctx.fillStyle = g; ctx.fillRect(0,0,logicalW,logicalH);
+    if (transition.phase !== 'camera') { const sunY = logicalH*0.62 - sunsetT * 120; ctx.fillStyle = rgba(colorAt('sun', redT), 0.85); ctx.beginPath(); ctx.arc(logicalW/2, sunY, 70, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = rgba(colorAt('cloud', redT), 0.22); for (let i=0;i<4;i++){ const cy = 120 + i*70 + Math.sin(time+i)*10; const cx = logicalW/2 - 270 + i*180; ctx.beginPath(); ctx.ellipse(cx, cy, 80, 22, 0, 0, Math.PI*2); ctx.fill(); } }
+    if (transition.phase === 'camera') { const vx = seatScreenX; drawSeatBase(vx, v.y, v.w, '#3a3a3a', '#666'); ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(vx+v.w/2, v.y+16, 26, 30, 0, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(vx+v.w/2+12, v.y-6, 14, 0, Math.PI*2); ctx.fill(); }
+    drawNoise();
+    if (transition.phase === 'sunset' && transition.t > 1.2) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(logicalW/2-240, logicalH-120, 480, 70); ctx.fillStyle = rgb(colorAt('ui', redT)); ctx.textAlign = 'center'; ctx.font = '18px system-ui'; ctx.fillText(currentScenery, logicalW/2, logicalH-80); ctx.textAlign = 'left'; }
+    if (transition.phase === 'blackout') { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, transition.t / 0.6)})`; ctx.fillRect(0,0,logicalW,logicalH); if (transition.t > 0.5) { ctx.fillStyle = rgb(colorAt('ui', redT)); ctx.textAlign = 'center'; ctx.font = '22px system-ui'; ctx.fillText('第 ' + layer + ' 层循环 · 风景已记录', logicalW/2, logicalH/2); ctx.font = '14px system-ui'; ctx.fillStyle = rgba(colorAt('ui', redT), 0.6); ctx.fillText('进入下一层…', logicalW/2, logicalH/2 + 34); ctx.textAlign = 'left'; } }
+  }
 
-    function chooseLocalImage() {
-        closeImageSourceModal();
-        if (fileInput) fileInput.click();
-    }
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    try {
+      if (!paused) update(dt);
+      ctx.save();
+      if (shakeMagnitude > 0) { const dx = randRange(-shakeMagnitude, shakeMagnitude); const dy = randRange(-shakeMagnitude, shakeMagnitude); ctx.translate(dx, dy); }
+      if (state === 'play' || state === 'gameover' || state === 'waiting') {
+        drawSkyGround(); drawPlatforms(); drawVoidSpikes(); drawCovers(); drawCoins(); drawStampObstacle(); for (const s of layerSpeakers) drawSpeaker(s); drawHitboxes(); drawViewSeat(); drawNoise();
+        if(state !== 'waiting') drawCat(); drawHUD();
+        if (paused) drawPauseOverlay();
+      } else if (state === 'transition') { drawTransition(); }
+      ctx.restore();
+    } catch (err) { console.error("渲染错误:", err); }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
 
-    // 对已经设置的形象再次裁剪
-    function recropCurrentImage() {
-        if (!state.imgSrc) { showToast('还没有设置角色形象'); return false; }
-        closeImageSourceModal();
-        openCropWithSource(state.imgSrc, state.imgRef || '');
-        return true;
-    }
-
-    if (fileInput) {
-        fileInput.addEventListener('change', function (e) {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                openCropWithSource(String(event.target.result || ''), file.name || '');
-            };
-            reader.onerror = function () { showToast('读取本地图片失败'); };
-            reader.readAsDataURL(file);
-            fileInput.value = '';
-        });
-    }
-
-    // ---------- 图片裁剪 ----------
-    // 裁剪框尺寸随屏幕可用空间变化，输出分辨率始终为 CROP_W x CROP_H
-    function computeCropViewSize() {
-        const availW = Math.max(CROP_MIN_VIEW, Math.min(window.innerWidth - CROP_RESERVED_H, window.innerWidth * 0.92, 420));
-        const availH = Math.max(CROP_MIN_VIEW, window.innerHeight - CROP_RESERVED_V);
-        const k = Math.min(availW / CROP_W, availH / CROP_H, 1);
-        const scale = Math.max(0.2, k);
-        return { w: CROP_W * scale, h: CROP_H * scale };
-    }
-
-    function clampCropScale(value) {
-        const min = cropObj.fitScale || 0.01;
-        const max = min * CROP_MAX_ZOOM;
-        return Math.max(min, Math.min(max, value));
-    }
-
-    function cropViewPoint(clientX, clientY) {
-        const rect = cropContainer.getBoundingClientRect();
-        return {
-            x: clientX - rect.left - cropContainer.clientLeft,
-            y: clientY - rect.top - cropContainer.clientTop
-        };
-    }
-
-    function syncCropImageStyle() {
-        cropImage.style.width = (cropObj.imgWidth * cropObj.scale) + 'px';
-        cropImage.style.height = (cropObj.imgHeight * cropObj.scale) + 'px';
-        cropImage.style.left = cropObj.offsetX + 'px';
-        cropImage.style.top = cropObj.offsetY + 'px';
-    }
-
-    function clampCropOffsets() {
-        const dispW = cropObj.imgWidth * cropObj.scale;
-        const dispH = cropObj.imgHeight * cropObj.scale;
-        cropObj.offsetX = Math.min(0, Math.max(cropObj.viewW - dispW, cropObj.offsetX));
-        cropObj.offsetY = Math.min(0, Math.max(cropObj.viewH - dispH, cropObj.offsetY));
-    }
-
-    function centerCropView() {
-        cropObj.offsetX = (cropObj.viewW - cropObj.imgWidth * cropObj.scale) / 2;
-        cropObj.offsetY = (cropObj.viewH - cropObj.imgHeight * cropObj.scale) / 2;
-        clampCropOffsets();
-        syncCropImageStyle();
-    }
-
-    // 按当前屏幕重新计算裁剪框大小；resetFraming 为 true 时重新适配并居中
-    function applyCropViewSize(resetFraming) {
-        const prevW = cropObj.viewW, prevH = cropObj.viewH;
-        const prevScale = cropObj.scale, prevX = cropObj.offsetX, prevY = cropObj.offsetY;
-        const size = computeCropViewSize();
-
-        cropObj.viewW = size.w;
-        cropObj.viewH = size.h;
-        cropContainer.style.width = size.w + 'px';
-        cropContainer.style.height = size.h + 'px';
-        cropContainer.style.setProperty('--crop-radius', Math.max(12, Math.round(Math.min(size.w, size.h) * 0.085)) + 'px');
-
-        if (!cropObj.imgWidth || !cropObj.imgHeight) return;
-
-        cropObj.fitScale = Math.max(size.w / cropObj.imgWidth, size.h / cropObj.imgHeight);
-
-        if (resetFraming || !prevScale) {
-            cropObj.scale = cropObj.fitScale;
-            centerCropView();
-            return;
-        }
-
-        // 屏幕尺寸变化时保持当前构图：以裁剪框中心为基准等比缩放
-        const factor = prevW > 0 ? size.w / prevW : 1;
-        const srcCenterX = ((prevW / 2) - prevX) / prevScale;
-        const srcCenterY = ((prevH / 2) - prevY) / prevScale;
-        cropObj.scale = clampCropScale(prevScale * factor);
-        cropObj.offsetX = size.w / 2 - srcCenterX * cropObj.scale;
-        cropObj.offsetY = size.h / 2 - srcCenterY * cropObj.scale;
-        clampCropOffsets();
-        syncCropImageStyle();
-    }
-
-    function zoomCropTo(targetScale, anchorX, anchorY) {
-        if (!cropObj.imgWidth || !cropObj.scale) return;
-        const ax = anchorX === undefined ? cropObj.viewW / 2 : anchorX;
-        const ay = anchorY === undefined ? cropObj.viewH / 2 : anchorY;
-        const nextScale = clampCropScale(targetScale);
-        const srcX = (ax - cropObj.offsetX) / cropObj.scale;
-        const srcY = (ay - cropObj.offsetY) / cropObj.scale;
-        cropObj.scale = nextScale;
-        cropObj.offsetX = ax - srcX * nextScale;
-        cropObj.offsetY = ay - srcY * nextScale;
-        clampCropOffsets();
-        syncCropImageStyle();
-        updateCropUI();
-    }
-
-    function zoomCropBy(factor, anchorX, anchorY) {
-        zoomCropTo(cropObj.scale * factor, anchorX, anchorY);
-    }
-
-    function resetCropView() {
-        cropObj.scale = cropObj.fitScale;
-        centerCropView();
-        updateCropUI();
-    }
-
-    function updateCropUI() {
-        const pct = cropObj.fitScale > 0 ? Math.round((cropObj.scale / cropObj.fitScale) * 100) : 100;
-        const label = document.getElementById('cropZoomLabel');
-        if (label) label.innerText = pct <= 100 ? '适应' : pct + '%';
-        const slider = document.getElementById('cropZoomSlider');
-        if (slider && document.activeElement !== slider) {
-            slider.value = String(Math.max(100, Math.min(400, pct)));
-        }
-        drawCropPreview();
-    }
-
-    // 实时预览：把裁剪框内的画面缩到小图上
-    function drawCropPreview() {
-        const preview = document.getElementById('cropPreview');
-        if (!preview || !cropObj.imgWidth || !cropObj.scale) return;
-        const pctx = preview.getContext('2d');
-        if (!pctx) return;
-        const pw = preview.width, ph = preview.height;
-        pctx.clearRect(0, 0, pw, ph);
-        if (!cropImage.complete || !cropImage.naturalWidth) return;
-        const sx = -cropObj.offsetX / cropObj.scale;
-        const sy = -cropObj.offsetY / cropObj.scale;
-        const sw = cropObj.viewW / cropObj.scale;
-        const sh = cropObj.viewH / cropObj.scale;
-        try {
-            pctx.drawImage(cropImage, sx, sy, sw, sh, 0, 0, pw, ph);
-        } catch (err) { /* 跨域受限时预览留空 */ }
-    }
-
-    // 载入图片进入裁剪：优先申请跨域权限，失败则退回仅预览模式
-    function openCropWithSource(src, fileName) {
-        if (!src) { showToast('请先选择一张图片'); return false; }
-        const isData = /^data:/i.test(src);
-        const img = new Image();
-        if (!isData) img.crossOrigin = 'anonymous';
-        img.onload = function () {
-            beginCropSession(img.src, img.naturalWidth, img.naturalHeight, fileName, false);
-        };
-        img.onerror = function () {
-            if (isData) { showToast('无法读取该图片，请换一张'); return; }
-            const fallback = new Image();
-            fallback.onload = function () {
-                beginCropSession(src, fallback.naturalWidth, fallback.naturalHeight, fileName, true);
-            };
-            fallback.onerror = function () { showToast('无法读取该图片，请换一张'); };
-            fallback.src = src;
-        };
-        img.src = src;
-        return true;
-    }
-
-    function beginCropSession(src, width, height, fileName, corsBlocked) {
-        cropObj.src = src;
-        cropObj.fileName = fileName || '';
-        cropObj.imgWidth = width || 1;
-        cropObj.imgHeight = height || 1;
-        cropObj.corsBlocked = !!corsBlocked;
-        cropObj.viewW = 0;
-        cropObj.viewH = 0;
-        cropObj.scale = 0;
-        cropImage.src = src;
-        cropModal.classList.add('active');
-        applyCropViewSize(true);
-        updateCropUI();
-        if (corsBlocked) showToast('该网络图片不允许跨域处理，只能预览位置；请先保存到本地再上传');
-    }
-
-    function closeCrop() {
-        cropModal.classList.remove('active');
-        cropPointers.clear();
-        cropDrag = null;
-        cropPinch = null;
-        cropContainer.classList.remove('dragging');
-    }
-
-    function applyCrop() {
-        if (!cropObj.src) { showToast('请先选择一张图片'); return; }
-        if (cropObj.corsBlocked) {
-            showToast('该网络图片不允许跨域处理，请先保存到本地后再裁剪');
-            return;
-        }
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = CROP_W;
-        outCanvas.height = CROP_H;
-        const outCtx = outCanvas.getContext('2d');
-        const img = new Image();
-        if (!/^data:/i.test(cropObj.src)) img.crossOrigin = 'anonymous';
-        img.onload = function () {
-            // 屏幕上的裁剪框换算回原图像素坐标
-            const sx = -cropObj.offsetX / cropObj.scale;
-            const sy = -cropObj.offsetY / cropObj.scale;
-            const sw = cropObj.viewW / cropObj.scale;
-            const sh = cropObj.viewH / cropObj.scale;
-            outCtx.fillStyle = '#000000';
-            outCtx.fillRect(0, 0, CROP_W, CROP_H);
-            outCtx.drawImage(img, sx, sy, sw, sh, 0, 0, CROP_W, CROP_H);
-            let data = '';
-            try {
-                data = outCanvas.toDataURL('image/jpeg', 0.92);
-            } catch (err) {
-                showToast('图片处理失败：该图片可能存在跨域限制');
-                return;
-            }
-            state.imgSrc = data;
-            state.imgRef = cropObj.fileName || '';
-            syncImagePanel();
-            closeCrop();
-            showToast('角色形象已更新');
-        };
-        img.onerror = function () { showToast('图片处理失败，请重试'); };
-        img.src = cropObj.src;
-    }
-
-    // 指针交互：单指/鼠标拖动平移，双指捏合缩放
-    const cropPointers = new Map();
-    let cropDrag = null, cropPinch = null;
-
-    function trackCropPointer(e) {
-        const p = cropViewPoint(e.clientX, e.clientY);
-        cropPointers.set(e.pointerId, { x: p.x, y: p.y, clientX: e.clientX, clientY: e.clientY });
-    }
-
-    cropContainer.addEventListener('pointerdown', function (e) {
-        if (!cropObj.imgWidth) return;
-        e.preventDefault();
-        trackCropPointer(e);
-        if (cropContainer.setPointerCapture) {
-            try { cropContainer.setPointerCapture(e.pointerId); } catch (err) { }
-        }
-        if (cropPointers.size === 1) {
-            cropPinch = null;
-            cropDrag = {
-                id: e.pointerId,
-                clientX: e.clientX, clientY: e.clientY,
-                offsetX: cropObj.offsetX, offsetY: cropObj.offsetY
-            };
-            cropContainer.classList.add('dragging');
-        } else if (cropPointers.size === 2) {
-            cropDrag = null;
-            startCropPinch();
-        }
-    });
-
-    cropContainer.addEventListener('pointermove', function (e) {
-        if (!cropPointers.has(e.pointerId)) return;
-        trackCropPointer(e);
-        if (cropPinch && cropPointers.size >= 2) {
-            e.preventDefault();
-            updateCropPinch();
-            return;
-        }
-        if (cropDrag && cropDrag.id === e.pointerId) {
-            e.preventDefault();
-            cropObj.offsetX = cropDrag.offsetX + (e.clientX - cropDrag.clientX);
-            cropObj.offsetY = cropDrag.offsetY + (e.clientY - cropDrag.clientY);
-            clampCropOffsets();
-            syncCropImageStyle();
-            drawCropPreview();
-        }
-    });
-
-    function endCropPointer(e) {
-        if (!cropPointers.has(e.pointerId)) return;
-        cropPointers.delete(e.pointerId);
-        if (cropDrag && cropDrag.id === e.pointerId) {
-            cropDrag = null;
-            cropContainer.classList.remove('dragging');
-        }
-        if (cropPointers.size < 2) cropPinch = null;
-        if (cropPointers.size === 1) {
-            // 双指抬起一指后继续单指拖动
-            const rest = cropPointers.entries().next().value;
-            cropDrag = {
-                id: rest[0],
-                clientX: rest[1].clientX, clientY: rest[1].clientY,
-                offsetX: cropObj.offsetX, offsetY: cropObj.offsetY
-            };
-            cropContainer.classList.add('dragging');
-        }
-        if (cropContainer.releasePointerCapture) {
-            try { cropContainer.releasePointerCapture(e.pointerId); } catch (err) { }
-        }
-    }
-    cropContainer.addEventListener('pointerup', endCropPointer);
-    cropContainer.addEventListener('pointercancel', endCropPointer);
-
-    function startCropPinch() {
-        const pts = Array.from(cropPointers.values()).slice(0, 2);
-        if (pts.length < 2 || !cropObj.imgWidth) return;
-        cropPinch = {
-            distance: Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)),
-            scale: cropObj.scale,
-            offsetX: cropObj.offsetX,
-            offsetY: cropObj.offsetY,
-            centerX: (pts[0].x + pts[1].x) / 2,
-            centerY: (pts[0].y + pts[1].y) / 2
-        };
-        cropContainer.classList.add('dragging');
-    }
-
-    function updateCropPinch() {
-        const pts = Array.from(cropPointers.values()).slice(0, 2);
-        if (!cropPinch || pts.length < 2) return;
-        const distance = Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y));
-        const centerX = (pts[0].x + pts[1].x) / 2;
-        const centerY = (pts[0].y + pts[1].y) / 2;
-        const nextScale = clampCropScale(cropPinch.scale * (distance / cropPinch.distance));
-        const srcX = (cropPinch.centerX - cropPinch.offsetX) / cropPinch.scale;
-        const srcY = (cropPinch.centerY - cropPinch.offsetY) / cropPinch.scale;
-        cropObj.scale = nextScale;
-        cropObj.offsetX = centerX - srcX * nextScale;
-        cropObj.offsetY = centerY - srcY * nextScale;
-        clampCropOffsets();
-        syncCropImageStyle();
-        updateCropUI();
-    }
-
-    // 滚轮缩放（以光标位置为锚点）
-    cropContainer.addEventListener('wheel', function (e) {
-        if (!cropObj.imgWidth) return;
-        e.preventDefault();
-        const p = cropViewPoint(e.clientX, e.clientY);
-        const factor = Math.max(0.8, Math.min(1.25, Math.exp(-e.deltaY * 0.0015)));
-        zoomCropBy(factor, p.x, p.y);
-    }, { passive: false });
-
-    // 双击：放大 / 还原
-    cropContainer.addEventListener('dblclick', function (e) {
-        if (!cropObj.imgWidth) return;
-        const p = cropViewPoint(e.clientX, e.clientY);
-        if (cropObj.scale > cropObj.fitScale * 1.05) zoomCropTo(cropObj.fitScale, p.x, p.y);
-        else zoomCropTo(cropObj.fitScale * 2, p.x, p.y);
-    });
-
-    // 工具条：缩放滑块 / 加减 / 复位
-    (function bindCropControls() {
-        const zoomIn = document.getElementById('cropZoomInBtn');
-        const zoomOut = document.getElementById('cropZoomOutBtn');
-        const resetBtn = document.getElementById('cropResetBtn');
-        const slider = document.getElementById('cropZoomSlider');
-        if (zoomIn) zoomIn.addEventListener('click', function () { zoomCropBy(1.2); });
-        if (zoomOut) zoomOut.addEventListener('click', function () { zoomCropBy(1 / 1.2); });
-        if (resetBtn) resetBtn.addEventListener('click', resetCropView);
-        if (slider) slider.addEventListener('input', function () {
-            const pct = parseFloat(this.value);
-            zoomCropTo(cropObj.fitScale * ((isNaN(pct) ? 100 : pct) / 100));
-        });
-    })();
-
-    // 窗口尺寸 / 屏幕方向变化时重新适配（保持当前构图）
-    window.addEventListener('resize', function () {
-        if (!cropModal.classList.contains('active')) return;
-        applyCropViewSize(false);
-        updateCropUI();
-    });
-
-    if (cropImage) cropImage.addEventListener('load', drawCropPreview);
-
-    // ---------- 事件绑定 ----------
-    const imagePanel = document.getElementById('imagePanel');
-    if (imagePanel) imagePanel.addEventListener('click', openImageSourceModal);
-
-    const exportBtn = document.getElementById('exportImageBtn');
-    if (exportBtn) exportBtn.addEventListener('click', exportPanelImage);
-
-    const settingsBtn = document.getElementById('settingsBtn');
-    if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
-
-    const themeBtn = document.getElementById('themeBtn');
-    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-
-    // 快捷键：Esc 关闭弹窗，Ctrl / ⌘ + S 保存设置
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' || e.key === 'Esc') {
-            if (cropModal.classList.contains('active')) { closeCrop(); e.preventDefault(); }
-            else if (imageSourceModal.classList.contains('active')) { closeImageSourceModal(); e.preventDefault(); }
-            else if (settingsModal.classList.contains('active')) { closeSettings(); e.preventDefault(); }
-            return;
-        }
-        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
-            if (settingsModal.classList.contains('active')) {
-                e.preventDefault();
-                saveSettings();
-            }
-        }
-    });
-
-    // 直接把剪贴板里的图片粘贴进来裁剪
-    document.addEventListener('paste', function (e) {
-        if (!e.clipboardData || !e.clipboardData.items) return;
-        const items = e.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].kind !== 'file' || !/^image\//i.test(items[i].type || '')) continue;
-            const file = items[i].getAsFile();
-            if (!file) continue;
-            e.preventDefault();
-            const reader = new FileReader();
-            reader.onload = function (ev) {
-                openCropWithSource(String(ev.target.result || ''), file.name || '剪贴板图片');
-            };
-            reader.readAsDataURL(file);
-            return;
-        }
-    });
-
-    if (jsonInput) {
-        jsonInput.addEventListener('change', function (e) {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                importJsonText(String(event.target.result || ''), file.name);
-            };
-            reader.onerror = function () { showToast('读取 JSON 文件失败'); };
-            reader.readAsText(file);
-            jsonInput.value = '';
-        });
-    }
-
-    // 长按标题：显示 / 隐藏设置按钮
-    let pressTimer = null;
-    function startPress() {
-        clearTimeout(pressTimer);
-        pressTimer = setTimeout(function () {
-            state.settingsVisible = !state.settingsVisible;
-            redraw();
-            showToast(state.settingsVisible ? '已显示设置按钮' : '已隐藏设置按钮');
-        }, 600);
-    }
-    function cancelPress() { clearTimeout(pressTimer); }
-
-    if (titleBox) {
-        titleBox.addEventListener('mousedown', startPress);
-        titleBox.addEventListener('touchstart', startPress);
-        titleBox.addEventListener('mouseup', cancelPress);
-        titleBox.addEventListener('mouseleave', cancelPress);
-        titleBox.addEventListener('touchend', cancelPress);
-        titleBox.addEventListener('touchcancel', cancelPress);
-    }
-
-    // ---------- 初始化 ----------
-    syncImagePanel();
-    renderPresetOptions();
-    redraw();
+})();
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
