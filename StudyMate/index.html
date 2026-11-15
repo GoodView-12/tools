@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复习助手</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; background-color: snow; }
+        .wrap { display: flex; height: 100vh; }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            width: 240px; flex-shrink: 0; background: #1e293b; color: #e2e8f0;
+            display: flex; flex-direction: column; padding: 20px 12px;
+            transition: width 0.25s ease, padding 0.25s ease;
+            overflow: hidden; white-space: nowrap;
+        }
+        .sidebar.collapsed { width: 72px; padding: 20px 8px; }
+        .sidebar-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px; padding-left: 8px;
+        }
+        .logo-area { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+        .logo-icon { width: 24px; height: 24px; stroke: #60a5fa; flex-shrink: 0; }
+        .logo-text { font-size: 1.25rem; font-weight: 600; color: #fff; }
+        .toggle-btn {
+            width: 32px; height: 32px; border: none; border-radius: 8px;
+            background: transparent; color: #94a3b8; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; transition: background 0.2s, color 0.2s;
+        }
+        .toggle-btn:hover { background: #334155; color: #fff; }
+        .toggle-btn .icon { width: 18px; height: 18px; }
+        .sidebar.collapsed .logo-text { display: none; }
+        .sidebar.collapsed .sidebar-header {
+            justify-content: center; padding-left: 0; flex-direction: column; gap: 12px;
+        }
+        .btns { display: flex; flex-direction: column; gap: 8px; }
+        .btns > button {
+            height: 48px; width: 100%; border: none; border-radius: 10px;
+            background: transparent; color: #cbd5e1; font-size: 1rem;
+            text-align: left; padding: 0 14px; cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .btns > button:hover { background: #334155; color: #fff; }
+        .btns > button.active { background: #334155; color: #fff; }
+        .icon {
+            width: 20px; height: 20px; stroke: currentColor; fill: none;
+            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
+        }
+        .sidebar.collapsed .btns > button { justify-content: center; padding: 0; gap: 0; }
+        .sidebar.collapsed .label { display: none; }
+        .badge {
+            margin-left: auto; background: #dc2626; color: #fff; font-size: 0.72rem;
+            min-width: 18px; height: 18px; border-radius: 9px;
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0 5px;
+        }
+        .sidebar.collapsed .badge { display: none; }
+
+        /* ===== 主内容 ===== */
+        .main-content { flex: 1; padding: 24px; background: #f8fafc; overflow-y: auto; }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        h2.page-title { font-size: 1.6rem; color: #1e293b; margin-bottom: 8px; }
+        .page-sub { color: #64748b; margin-bottom: 24px; line-height: 1.6; }
+
+        /* 首页 */
+        .hero {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border-radius: 20px; padding: 40px 32px; color: #fff; margin-bottom: 28px;
+        }
+        .hero h2 { font-size: 1.8rem; margin-bottom: 12px; }
+        .hero p { color: #cbd5e1; line-height: 1.7; max-width: 640px; }
+        .feature-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px; margin-bottom: 28px;
+        }
+        .feature-card {
+            background: #fff; border-radius: 16px; padding: 22px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+        }
+        .feature-card .f-icon { font-size: 1.6rem; margin-bottom: 10px; }
+        .feature-card h3 { font-size: 1.1rem; color: #1e293b; margin-bottom: 8px; }
+        .feature-card p { color: #64748b; font-size: 0.92rem; line-height: 1.6; }
+        .start-box {
+            background: #fff; border-radius: 16px; padding: 24px;
+            border: 1px dashed #cbd5e1; text-align: center; color: #475569;
+        }
+        .start-box strong { color: #1e293b; }
+
+        /* 练习卡片 */
+        .practice-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin-bottom: 24px;
+        }
+        .practice-card {
+            background: #fff; border-radius: 18px; padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            cursor: pointer; transition: transform 0.15s, box-shadow 0.2s;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .practice-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.08); }
+        .practice-card .p-icon { font-size: 1.8rem; }
+        .practice-card h3 { font-size: 1.15rem; color: #1e293b; }
+        .practice-card p { color: #64748b; font-size: 0.92rem; line-height: 1.6; flex: 1; }
+        .practice-card .count {
+            align-self: flex-start; background: #eef2f6; color: #475569;
+            padding: 4px 10px; border-radius: 20px; font-size: 0.82rem;
+        }
+
+        /* 通用按钮 */
+        .btn-primary, .btn-ghost, .btn-danger {
+            border: none; border-radius: 10px; padding: 10px 20px;
+            font-size: 0.95rem; cursor: pointer; transition: background 0.2s;
+        }
+        .btn-primary { background: #1e293b; color: #fff; }
+        .btn-primary:hover { background: #334155; }
+        .btn-primary:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-ghost { background: #eef2f6; color: #334155; }
+        .btn-ghost:hover { background: #e2e8f0; }
+        .btn-danger { background: #fee2e2; color: #b91c1c; }
+        .btn-danger:hover { background: #fecaca; }
+        .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+        .import-msg { font-size: 0.88rem; }
+        .import-msg.ok { color: #16a34a; }
+        .import-msg.err { color: #dc2626; }
+
+        /* 导入区 */
+        .import-box {
+            background: #fff; border-radius: 18px; padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            margin-bottom: 24px;
+        }
+        .import-box h3 { color: #1e293b; margin-bottom: 8px; }
+        .import-box .hint { color: #64748b; font-size: 0.9rem; margin-bottom: 16px; line-height: 1.6; }
+        .file-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .file-input-wrap {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px;
+            padding: 10px 16px; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+        }
+        .file-input-wrap:hover { border-color: #60a5fa; background: #f0f9ff; }
+        .file-input-wrap input[type="file"] { display: none; }
+        .file-name { color: #475569; font-size: 0.9rem; }
+
+        /* 选套面板 */
+        .picker {
+            background: #fff; border-radius: 18px; padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            margin-bottom: 24px;
+        }
+        .picker h3 { color: #1e293b; margin-bottom: 16px; }
+        .picker-list { display: flex; flex-direction: column; gap: 10px; }
+        .picker-item {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; padding: 14px 18px; border: 1px solid #e2e8f0;
+            border-radius: 12px; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        }
+        .picker-item:hover { background: #f8fafc; border-color: #60a5fa; }
+        .picker-item .pi-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .picker-item .pi-title { color: #1e293b; font-weight: 500; }
+        .picker-item .pi-meta { color: #94a3b8; font-size: 0.82rem; }
+        .picker-item .pi-count { color: #64748b; font-size: 0.85rem; flex-shrink: 0; }
+        .empty-tip { color: #94a3b8; text-align: center; padding: 30px 0; }
+
+        /* ===== 答题界面 ===== */
+        .quiz-wrap {
+            background: #fff; border-radius: 18px; padding: 28px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+        }
+        .quiz-top {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .quiz-progress-bar {
+            flex: 1; height: 6px; background: #eef2f6; border-radius: 3px;
+            overflow: hidden; min-width: 120px;
+        }
+        .quiz-progress-fill {
+            height: 100%; background: #60a5fa; border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        .quiz-progress-text { color: #64748b; font-size: 0.88rem; flex-shrink: 0; }
+        .quiz-score-text { color: #475569; font-size: 0.88rem; flex-shrink: 0; }
+
+        .quiz-question { font-size: 1.15rem; color: #1e293b; margin-bottom: 18px; line-height: 1.7; }
+        .blank-input {
+            border: none; border-bottom: 2px solid #60a5fa; background: transparent;
+            font-size: 1.05rem; padding: 4px 8px; outline: none; color: #1e293b;
+            min-width: 140px;
+        }
+        .blank-input.correct { border-bottom-color: #16a34a; color: #16a34a; }
+        .blank-input.wrong { border-bottom-color: #dc2626; color: #dc2626; }
+
+        .option-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+        .option-item {
+            display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+            border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .option-item:hover { background: #f8fafc; }
+        .option-item.selected { border-color: #60a5fa; background: #eff6ff; }
+        .option-item.correct { border-color: #16a34a; background: #f0fdf4; }
+        .option-item.wrong { border-color: #dc2626; background: #fef2f2; }
+        .option-item.disabled { cursor: default; }
+        .option-item.disabled:hover { background: inherit; }
+
+        .quiz-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .quiz-feedback { margin-top: 14px; font-size: 0.95rem; min-height: 1.2em; }
+        .quiz-feedback.ok { color: #16a34a; }
+        .quiz-feedback.err { color: #dc2626; }
+
+        .word-fill {
+            background: #f8fafc; border-radius: 14px; padding: 32px;
+            text-align: center; margin-bottom: 18px;
+        }
+        .word-fill .word-zh { font-size: 1.8rem; color: #1e293b; margin-bottom: 16px; }
+        .word-fill .word-hint { font-size: 0.9rem; color: #94a3b8; margin-bottom: 12px; }
+        .word-fill .blank-input { font-size: 1.3rem; text-align: center; min-width: 220px; }
+        .word-fill .word-answer-reveal { margin-top: 14px; font-size: 1rem; color: #16a34a; }
+        .word-fill .word-answer-reveal.wrong { color: #dc2626; }
+
+        .quiz-nav {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px;
+            padding-top: 16px; border-top: 1px solid #eef2f6;
+        }
+        .quiz-nav-dot {
+            width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0;
+            background: #fff; color: #64748b; font-size: 0.82rem; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .quiz-nav-dot:hover { border-color: #60a5fa; }
+        .quiz-nav-dot.current { border-color: #1e293b; background: #1e293b; color: #fff; }
+        .quiz-nav-dot.correct { border-color: #16a34a; background: #f0fdf4; color: #16a34a; }
+        .quiz-nav-dot.wrong { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+
+        /* 结果页 */
+        .result-card {
+            background: #fff; border-radius: 18px; padding: 32px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            text-align: center;
+        }
+        .result-card .result-emoji { font-size: 3rem; margin-bottom: 12px; }
+        .result-card h3 { font-size: 1.5rem; color: #1e293b; margin-bottom: 8px; }
+        .result-card .result-score { font-size: 1.1rem; color: #475569; margin-bottom: 20px; }
+        .result-card .result-stats {
+            display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        .result-stat {
+            background: #f8fafc; border-radius: 14px; padding: 16px 28px;
+            border: 1px solid #eef2f6;
+        }
+        .result-stat .rs-num { font-size: 1.6rem; font-weight: 700; color: #1e293b; }
+        .result-stat .rs-label { font-size: 0.85rem; color: #64748b; }
+        .result-stat.correct .rs-num { color: #16a34a; }
+        .result-stat.wrong .rs-num { color: #dc2626; }
+
+        /* 题库 */
+        .bank-toolbar {
+            display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+            margin-bottom: 20px;
+        }
+        .filter-btn {
+            border: 1px solid #e2e8f0; background: #fff; color: #475569;
+            border-radius: 20px; padding: 8px 16px; font-size: 0.9rem;
+            cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .filter-btn:hover { background: #f8fafc; }
+        .filter-btn.active { background: #1e293b; border-color: #1e293b; color: #fff; }
+
+        .bank-list { display: flex; flex-direction: column; gap: 14px; }
+        .bank-item {
+            background: #fff; border-radius: 16px; padding: 20px 22px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+        }
+        .bank-item .bi-head {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
+        }
+        .bank-item .bi-title { color: #1e293b; font-size: 1.1rem; font-weight: 600; }
+        .bank-item .bi-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+        .bank-item .bi-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        .tag {
+            background: #eef2f6; color: #475569; padding: 3px 10px;
+            border-radius: 20px; font-size: 0.8rem;
+        }
+        .tag.type-word { background: #e0f2fe; color: #0369a1; }
+        .tag.type-choice { background: #dcfce7; color: #15803d; }
+        .tag.type-blank { background: #fef3c7; color: #b45309; }
+        .bank-item .bi-sub { color: #94a3b8; font-size: 0.85rem; margin-bottom: 12px; }
+        .bank-item .bi-preview {
+            background: #f8fafc; border-radius: 10px; padding: 12px 14px;
+            color: #475569; font-size: 0.88rem; line-height: 1.6;
+            max-height: 120px; overflow-y: auto;
+        }
+        .bank-item .bi-preview div { margin-bottom: 4px; }
+
+        /* 编辑工作台 */
+        .editor-card {
+            background: #fff; border-radius: 18px; padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            margin-bottom: 20px;
+        }
+        .editor-card h3 { color: #1e293b; margin-bottom: 16px; }
+        .form-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .form-field { display: flex; flex-direction: column; gap: 6px; }
+        .form-field label { font-size: 0.88rem; color: #475569; font-weight: 500; }
+        .form-field input[type="text"],
+        .form-field select,
+        .form-field textarea {
+            border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px;
+            font-size: 0.95rem; color: #1e293b; outline: none; background: #f8fafc;
+            transition: border-color 0.2s, background 0.2s;
+            font-family: inherit;
+        }
+        .form-field input:focus,
+        .form-field select:focus,
+        .form-field textarea:focus { border-color: #60a5fa; background: #fff; }
+        .form-field textarea { resize: vertical; min-height: 60px; }
+        .form-field .field-hint { font-size: 0.8rem; color: #94a3b8; }
+
+        .question-editor {
+            border: 1px solid #eef2f6; border-radius: 14px; padding: 18px;
+            margin-bottom: 14px; background: #fbfdff;
+        }
+        .question-editor .qe-head {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .question-editor .qe-index { font-size: 0.85rem; color: #64748b; font-weight: 600; }
+        .question-editor .qe-del {
+            border: none; background: transparent; color: #dc2626;
+            cursor: pointer; font-size: 0.85rem; padding: 4px 8px; border-radius: 6px;
+        }
+        .question-editor .qe-del:hover { background: #fee2e2; }
+        .question-editor .qe-fields { display: flex; flex-direction: column; gap: 12px; }
+        .option-row { display: flex; align-items: center; gap: 10px; }
+        .option-row .opt-label { width: 24px; text-align: center; color: #64748b; font-weight: 600; }
+        .option-row input[type="text"] { flex: 1; }
+        .option-row .opt-radio { cursor: pointer; }
+
+        .editor-actions {
+            display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+            position: sticky; bottom: 0; background: #f8fafc;
+            padding: 16px 0; margin-top: 8px;
+        }
+        .editor-actions .spacer { flex: 1; }
+
+        /* 统计页 */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px; margin-bottom: 28px;
+        }
+        .stat-card {
+            background: #fff; border-radius: 16px; padding: 20px 22px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+        }
+        .stat-card .sc-num { font-size: 1.8rem; font-weight: 700; color: #1e293b; }
+        .stat-card .sc-label { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
+        .stats-section {
+            background: #fff; border-radius: 16px; padding: 22px 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            margin-bottom: 20px;
+        }
+        .stats-section h3 { color: #1e293b; margin-bottom: 14px; }
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th, .stats-table td {
+            text-align: left; padding: 10px 8px; border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem; color: #475569;
+        }
+        .stats-table th { color: #64748b; font-weight: 500; font-size: 0.82rem; }
+        .stats-table tr:last-child td { border-bottom: none; }
+        .stats-empty { color: #94a3b8; padding: 16px 0; }
+
+        /* ===== 错题本 ===== */
+        .wrong-toolbar {
+            display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+            margin-bottom: 20px;
+        }
+        .wrong-group {
+            background: #fff; border-radius: 16px; padding: 20px 22px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            margin-bottom: 18px;
+        }
+        .wrong-group .wg-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .wrong-group .wg-title {
+            display: flex; align-items: center; gap: 10px;
+            color: #1e293b; font-weight: 600; font-size: 1.05rem;
+        }
+        .wrong-group .wg-count {
+            background: #fee2e2; color: #b91c1c; font-size: 0.8rem;
+            padding: 3px 10px; border-radius: 20px;
+        }
+        .wrong-item {
+            border: 1px solid #eef2f6; border-radius: 12px; padding: 14px 16px;
+            margin-bottom: 10px; background: #fbfdff;
+        }
+        .wrong-item:last-child { margin-bottom: 0; }
+        .wrong-item .wi-content {
+            color: #1e293b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 8px;
+        }
+        .wrong-item .wi-answer {
+            color: #dc2626; font-size: 0.88rem; margin-bottom: 8px;
+        }
+        .wrong-item .wi-foot {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; flex-wrap: wrap;
+        }
+        .wrong-item .wi-meta { color: #94a3b8; font-size: 0.8rem; }
+        .wrong-empty {
+            background: #fff; border-radius: 16px; padding: 40px;
+            text-align: center; color: #94a3b8;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+        }
+
+        /* 文档 & 关于 */
+        .doc-block {
+            background: #fff; border-radius: 16px; padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+            margin-bottom: 20px;
+        }
+        .doc-block h3 { color: #1e293b; margin-bottom: 12px; }
+        .doc-block p, .doc-block li { color: #475569; line-height: 1.7; }
+        .doc-block ul, .doc-block ol { padding-left: 20px; margin: 10px 0; }
+        .doc-block li { margin-bottom: 6px; }
+        .doc-block code {
+            background: #f1f5f9; padding: 2px 6px; border-radius: 6px;
+            font-size: 0.88rem; color: #be123c;
+        }
+        .doc-block pre {
+            background: #0f172a; color: #e2e8f0; border-radius: 12px;
+            padding: 18px; overflow-x: auto; font-size: 0.85rem; line-height: 1.6;
+            margin-top: 12px;
+        }
+        .doc-block strong { color: #1e293b; }
+        .about-card {
+            background: #fff; border-radius: 16px; padding: 28px;
+            max-width: 720px; box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+            border: 1px solid #eef2f6;
+        }
+        .about-card h2 { font-size: 1.4rem; margin-bottom: 12px; color: #1e293b; }
+        .about-card p { color: #475569; line-height: 1.7; margin-bottom: 12px; }
+        .about-card a {
+            color: #2563eb; text-decoration: none;
+            border-bottom: 1px solid transparent; transition: border-color 0.15s;
+        }
+        .about-card a:hover { border-bottom-color: #2563eb; }
+        .about-card .version {
+            display: inline-block; background: #eef2f6; color: #475569;
+            padding: 4px 10px; border-radius: 20px; font-size: 0.85rem;
+        }
+
+        /* 文档页：提示词复制区 */
+        .prompt-box {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 18px; margin-top: 12px; position: relative;
+        }
+        .prompt-box pre {
+            background: transparent; color: #1e293b; padding: 0; margin: 0;
+            white-space: pre-wrap; word-break: break-word;
+            font-size: 0.85rem; line-height: 1.7;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        .prompt-copy-btn {
+            position: absolute; top: 12px; right: 12px;
+            border: 1px solid #cbd5e1; background: #fff; color: #334155;
+            border-radius: 8px; padding: 5px 12px; font-size: 0.8rem;
+            cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        }
+        .prompt-copy-btn:hover { background: #eef2f6; border-color: #94a3b8; }
+        .prompt-copy-btn.copied { background: #dcfce7; border-color: #16a34a; color: #15803d; }
+        .doc-footer {
+            text-align: center; color: #94a3b8; font-size: 0.85rem;
+            padding: 20px 0 8px; line-height: 1.8;
+        }
+        .doc-footer a { color: #2563eb; text-decoration: none; }
+        .doc-footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-area">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    <span class="logo-text">StudyMate</span>
+                </div>
+                <button class="toggle-btn" id="toggleBtn" aria-label="切换侧边栏">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="btns">
+                <button data-view="home" class="active">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <span class="label">首页</span>
+                </button>
+                <button data-view="practice">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                    </svg>
+                    <span class="label">练习</span>
+                </button>
+                <button data-view="bank">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        <line x1="8" y1="8" x2="16" y2="8"/>
+                        <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                    <span class="label">题库</span>
+                </button>
+                <button data-view="wrong">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span class="label">错题本</span>
+                    <span class="badge" id="wrongBadge">0</span>
+                </button>
+                <button data-view="stats">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <span class="label">统计</span>
+                </button>
+                <button data-view="docs">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    <span class="label">文档</span>
+                </button>
+                <button data-view="about">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    <span class="label">关于</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- ===== 首页 ===== -->
+            <section class="view active" id="view-home">
+                <div class="hero">
+                    <h2 id="greeting">欢迎使用 StudyMate</h2>
+                    <p>StudyMate 是一个轻量的个人复习助手：把知识点、单词、选择题整理成 JSON 文件导入，或在编辑工作台手动制作，就能用挖空、卡片、单选三种方式反复练习。答错的题会自动收进错题本，可一键转成新题库专项练习。</p>
+                </div>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="f-icon">📝</div>
+                        <h3>知识语句挖空</h3>
+                        <p>把一句话里的关键概念挖空，练习时回忆并填写，适合概念、定义、历史事件等记忆型知识。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="f-icon">🃏</div>
+                        <h3>单词短语填写</h3>
+                        <p>看中文释义，填写对应的英文单词或短语，检查对错。适合英语单词、术语的反复记忆。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="f-icon">✅</div>
+                        <h3>单选题问答</h3>
+                        <p>四选一选择题，导入题目和答案索引即可练习，适合检验理解、做考前自测。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="f-icon">📕</div>
+                        <h3>错题本</h3>
+                        <p>答错的题自动收录，支持按题型查看、删除，还能一键转为新题库做专项突破。</p>
+                    </div>
+                </div>
+                <div class="start-box">
+                    <p><strong>怎么开始？</strong></p>
+                    <p>去「题库」页导入 JSON 文件或用编辑工作台创建题目，然后回到「练习」页点击题型卡片选择一套题目开始。格式说明见「文档」页。</p>
+                </div>
+            </section>
+
+            <!-- ===== 练习 ===== -->
+            <section class="view" id="view-practice">
+                <h2 class="page-title">练习</h2>
+                <p class="page-sub">点击题型卡片，选择一套已导入的题目开始练习。题目在「题库」页导入或创建。</p>
+
+                <div class="practice-grid">
+                    <div class="practice-card" data-type="blank">
+                        <div class="p-icon">📝</div>
+                        <h3>知识语句挖空</h3>
+                        <p>把句子中的关键内容挖空，输入答案后检查。</p>
+                        <span class="count" id="count-blank">已导入 0 套</span>
+                    </div>
+                    <div class="practice-card" data-type="word">
+                        <div class="p-icon">🃏</div>
+                        <h3>英语单词短语填写</h3>
+                        <p>看中文，填写英文单词或短语，检查对错。</p>
+                        <span class="count" id="count-word">已导入 0 套</span>
+                    </div>
+                    <div class="practice-card" data-type="choice">
+                        <div class="p-icon">✅</div>
+                        <h3>单选题问答</h3>
+                        <p>四选一，选择后立即判断对错。</p>
+                        <span class="count" id="count-choice">已导入 0 套</span>
+                    </div>
+                </div>
+
+                <div class="picker" id="picker" style="display:none;">
+                    <h3 id="pickerTitle">选择一套题目</h3>
+                    <div class="picker-list" id="pickerList"></div>
+                </div>
+            </section>
+
+            <!-- ===== 题库 ===== -->
+            <section class="view" id="view-bank">
+                <h2 class="page-title">题库</h2>
+                <p class="page-sub">导入 JSON 文件、用编辑工作台创建题目，或管理已导入的题目套。</p>
+
+                <div class="import-box">
+                    <h3>导入题目文件</h3>
+                    <p class="hint">选择一个 <code>.json</code> 文件，格式见「文档」页。导入后可在下方列表中查看。</p>
+                    <div class="file-row">
+                        <label class="file-input-wrap">
+                            <input type="file" id="fileInput" accept=".json,application/json">
+                            <span>📂 选择 JSON 文件</span>
+                        </label>
+                        <span class="file-name" id="fileName">未选择文件</span>
+                        <button class="btn-primary" id="importBtn" disabled>导入</button>
+                        <span class="import-msg" id="importMsg"></span>
+                    </div>
+                </div>
+
+                <div class="bank-toolbar">
+                    <button class="btn-primary" id="newSetBtn">＋ 新建题目套</button>
+                    <button class="filter-btn active" data-filter="all">全部</button>
+                    <button class="filter-btn" data-filter="blank">挖空</button>
+                    <button class="filter-btn" data-filter="word">单词卡片</button>
+                    <button class="filter-btn" data-filter="choice">单选题</button>
+                    <span class="import-msg" id="bankMsg" style="margin-left:auto;"></span>
+                </div>
+
+                <div class="bank-list" id="bankList"></div>
+            </section>
+
+            <!-- ===== 错题本 ===== -->
+            <section class="view" id="view-wrong">
+                <h2 class="page-title">错题本</h2>
+                <p class="page-sub">答题时答错的题会自动收录到这里（同一道题只记一次）。可以把某个题型的错题一键转为新题库，做专项练习。</p>
+
+                <div class="wrong-toolbar">
+                    <button class="btn-danger" id="clearWrongBtn">清空错题本</button>
+                    <span class="import-msg" id="wrongMsg" style="margin-left:auto;"></span>
+                </div>
+
+                <div id="wrongContent"></div>
+            </section>
+
+            <!-- ===== 编辑工作台 ===== -->
+            <section class="view" id="view-editor">
+                <h2 class="page-title" id="editorTitle">新建题目套</h2>
+                <p class="page-sub">填写元信息并逐题添加内容。保存后可在「题库」页看到，也能直接去「练习」。</p>
+
+                <div class="editor-card">
+                    <h3>基本信息</h3>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="edTitle">标题</label>
+                            <input type="text" id="edTitle" placeholder="例如：英语七上单词集合">
+                        </div>
+                        <div class="form-field">
+                            <label for="edType">题型</label>
+                            <select id="edType">
+                                <option value="word">单词卡片</option>
+                                <option value="choice">单选题</option>
+                                <option value="blank">挖空</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label for="edTags">标签（逗号分隔）</label>
+                            <input type="text" id="edTags" placeholder="英语, 单词, 七上">
+                        </div>
+                        <div class="form-field">
+                            <label for="edAuthor">作者</label>
+                            <input type="text" id="edAuthor" placeholder="你的署名">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="editor-card">
+                    <h3>题目列表</h3>
+                    <div id="questionEditors"></div>
+                    <button class="btn-ghost" id="addQuestionBtn" style="margin-top:8px;">＋ 添加一道题</button>
+                </div>
+
+                <div class="editor-actions">
+                    <button class="btn-primary" id="saveEditorBtn">保存到题库</button>
+                    <button class="btn-ghost" id="cancelEditorBtn">取消</button>
+                    <span class="spacer"></span>
+                    <span class="import-msg" id="editorMsg"></span>
+                </div>
+            </section>
+
+            <!-- ===== 统计 ===== -->
+            <section class="view" id="view-stats">
+                <h2 class="page-title">统计</h2>
+                <p class="page-sub">练习记录保存在本地，记录每次练习的题型、套题、正确数和总题数。</p>
+
+                <div class="stats-grid" id="statsSummary"></div>
+
+                <div class="stats-section">
+                    <h3>最近练习记录</h3>
+                    <div id="statsRecent"></div>
+                </div>
+
+                <div class="stats-section">
+                    <h3>按题型汇总</h3>
+                    <div id="statsByType"></div>
+                </div>
+            </section>
+
+            <!-- ===== 文档 ===== -->
+            <section class="view" id="view-docs">
+                <h2 class="page-title">文档</h2>
+                <p class="page-sub">StudyMate 使用说明：题目格式、导入导出、答题流程、错题本等。</p>
+
+                <div class="doc-block">
+                    <h3>一、快速上手</h3>
+                    <ol>
+                        <li><strong>准备题目</strong>：按下方 JSON 格式整理题目，保存为 <code>.json</code> 文件；或在「题库」页用编辑工作台手动创建。</li>
+                        <li><strong>导入题库</strong>：进入「题库」页，点击「选择 JSON 文件」→ 选中文件 → 点「导入」。</li>
+                        <li><strong>开始练习</strong>：进入「练习」页，点击题型卡片（挖空 / 单词 / 单选）→ 选择一套题目 → 开始答题。</li>
+                        <li><strong>查看错题</strong>：答错的题会自动收进「错题本」，可查看、移除，或一键转为新题库做专项练习。</li>
+                        <li><strong>查看统计</strong>：「统计」页记录每次练习的题型、套题、正确数和正确率。</li>
+                    </ol>
+                </div>
+
+                <div class="doc-block">
+                    <h3>二、JSON 题目格式</h3>
+                    <p>一个 JSON 文件代表<strong>一套题</strong>，包含两部分：</p>
+                    <ul>
+                        <li><code>information</code>：元信息（套题名称、题型、标签、作者）</li>
+                        <li><code>quetions</code>：题目集合，键为题目编号（如 <code>"1"</code>、<code>"2"</code>），值为该题内容</li>
+                    </ul>
+                    <p><strong>information 字段说明：</strong></p>
+                    <ul>
+                        <li><code>title</code>（必填）：套题名称，展示在题库和选择套题时</li>
+                        <li><code>type</code>（必填）：题型，只能是 <code>word</code> / <code>choice</code> / <code>blank</code> 之一</li>
+                        <li><code>tag</code>（可选）：字符串数组，科目、年级、题型等标签</li>
+                        <li><code>auther</code>（可选）：署名，便于区分来源（拼写沿用项目约定）</li>
+                    </ul>
+                    <p>完整骨架示例：</p>
+                    <pre>{
+  "information": {
+    "title": "题目套名称",
+    "type": "word | choice | blank",
+    "tag": ["标签1", "标签2"],
+    "auther": "作者署名"
+  },
+  "quetions": {
+    "1": { /* 第 1 题内容，字段随题型变化 */ },
+    "2": { /* 第 2 题内容 */ }
+  }
+}</pre>
+                    <p style="color:#94a3b8;font-size:0.88rem;">注意：题目集合的键名是 <code>quetions</code>（沿用项目既有拼写），不是 <code>questions</code>。导入时会按此字段读取。</p>
+                </div>
+
+                <div class="doc-block">
+                    <h3>三、三种题型的字段</h3>
+
+                    <p><strong>1. 单词卡片（type: "word"）</strong></p>
+                    <p>练习时显示中文，用户填写英文，检查对错（忽略大小写和首尾空格）。每题两个字段：</p>
+                    <ul>
+                        <li><code>word</code>：中文释义，作为题干展示</li>
+                        <li><code>ranslation</code>：英文单词或短语，作为标准答案</li>
+                    </ul>
+                    <pre>{
+  "information": {
+    "title": "英语七上单词集合",
+    "type": "word",
+    "tag": ["英语", "单词"],
+    "auther": "小明"
+  },
+  "quetions": {
+    "1": { "word": "苹果", "ranslation": "apple" },
+    "2": { "word": "香蕉", "ranslation": "banana" }
+  }
+}</pre>
+
+                    <p><strong>2. 单选题（type: "choice"）</strong></p>
+                    <p>练习时展示题干和四个选项，选择后提交判断对错。每题三个字段：</p>
+                    <ul>
+                        <li><code>quetion</code>：题干文字</li>
+                        <li><code>Option</code>：四个选项的字符串数组，顺序对应 A / B / C / D</li>
+                        <li><code>answer</code>：正确选项的索引，从 <code>0</code> 开始（<code>"0"</code> = A，<code>"1"</code> = B，以此类推），字符串或数字均可</li>
+                    </ul>
+                    <pre>{
+  "information": {
+    "title": "历史选择题练习",
+    "type": "choice",
+    "tag": ["历史", "选择题"],
+    "auther": "小红"
+  },
+  "quetions": {
+    "1": {
+      "quetion": "辛亥革命爆发于哪一年？",
+      "Option": ["1911年", "1912年", "1919年", "1921年"],
+      "answer": "0"
+    }
+  }
+}</pre>
+
+                    <p><strong>3. 知识语句挖空（type: "blank"）</strong></p>
+                    <p>练习时题干中的空位变成输入框，用户填写后检查。每题两个字段：</p>
+                    <ul>
+                        <li><code>quetion</code>：题干，用连续两个及以上下划线 <code>____</code> 表示空位</li>
+                        <li><code>answer</code>：标准答案，与用户输入完全一致（去除首尾空格）才算对</li>
+                    </ul>
+                    <pre>{
+  "information": {
+    "title": "近代史知识点挖空",
+    "type": "blank",
+    "tag": ["历史", "挖空"],
+    "auther": "小刚"
+  },
+  "quetions": {
+    "1": {
+      "quetion": "辛亥革命是一场____性质的革命。",
+      "answer": "资产阶级民主"
+    }
+  }
+}</pre>
+                    <p style="color:#94a3b8;font-size:0.88rem;">提示：一道题里如果有多个 <code>____</code>，当前版本会把它们都替换成输入框，但只按一个答案判断。建议一题只挖一个空。</p>
+                </div>
+
+                <div class="doc-block">
+                    <h3>四、导入与校验规则</h3>
+                    <ul>
+                        <li>在「题库」页选择 <code>.json</code> 文件后，点击「导入」才真正写入题库。</li>
+                        <li>导入时会校验：必须有 <code>information</code>、<code>information.type</code>、<code>quetions</code> 三个字段。</li>
+                        <li><code>information.type</code> 必须是 <code>word</code> / <code>choice</code> / <code>blank</code> 之一，否则拒绝导入。</li>
+                        <li>校验通过后，题目存入浏览器 <code>localStorage</code>，刷新页面不丢失。</li>
+                        <li>同一文件可以重复导入，会生成多套独立题目（每套有独立 id）。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>五、导出与分享</h3>
+                    <ul>
+                        <li>题库页每套题有「导出 JSON」按钮，点击下载该套题的 <code>.json</code> 文件。</li>
+                        <li>导出格式与导入格式完全一致，可以直接发给别人，对方在「题库」页导入即可。</li>
+                        <li>题库列表和「查看详情」的预览<strong>不显示答案</strong>，答案只在答题判断时使用，避免预览时泄露。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>六、编辑工作台</h3>
+                    <ul>
+                        <li>在「题库」页点「＋ 新建题目套」进入工作台。</li>
+                        <li>填写标题（必填）、题型、标签（逗号分隔）、作者。</li>
+                        <li>切换题型时，下方题目表单会自动切换字段：单词 → 中文/英文；单选 → 题干 + 4 选项 + 正确项；挖空 → 题干 + 答案。</li>
+                        <li>点「＋ 添加一道题」增加题目，每题可单独删除。</li>
+                        <li>点「保存到题库」会校验每道题是否填完整，通过后写入题库。</li>
+                        <li>已有套题可在题库页点「编辑」再次打开工作台修改，保存时按 id 更新原套题。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>七、答题流程与判分</h3>
+                    <ul>
+                        <li>答题界面顶部有进度条、「已答 / 总数」、「正确数」；底部有题目导航点，可点击跳转任意题。</li>
+                        <li><strong>挖空题</strong>：用户输入答案 → 点「检查」→ 正确变绿、错误变红并显示正确答案。答错时保留用户的输入，方便对照。</li>
+                        <li><strong>单词卡片</strong>：显示中文 → 用户填写英文 → 点「检查」。判分<strong>忽略大小写和首尾空格</strong>。</li>
+                        <li><strong>单选题</strong>：用户点击选项高亮 → 点「提交答案」→ 正确项标绿、错选项标红。</li>
+                        <li>点「下一题」或导航点切换题目；最后一道题点「下一题」进入结果页。</li>
+                        <li>结果页显示正确率、正确数、错误/未答数、总题数，可「重新开始」「选择其他套题」「查看统计」，有错题时还可「去错题本」。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>八、错题本</h3>
+                    <ul>
+                        <li>答题时答错的题（挖空 / 单词 / 单选）会自动收进错题本。</li>
+                        <li><strong>去重规则</strong>：按题目内容生成指纹，同一道题反复错只累加「错误次数」，不会重复收录。</li>
+                        <li>错题本按题型分组展示，每题显示题目、正确答案、错误次数、最近错误时间、来源套题。</li>
+                        <li>每题可单独「移除」；顶部「清空错题本」可全部删除。</li>
+                        <li>每个题型分组有「转为题库」按钮：把该题型所有错题打包成一套新题目写入题库，命名格式为「XX 错题专项（X月X日）」，标签自动带「错题专项」。转换后这些题会从错题本移除。</li>
+                        <li>侧边栏「错题本」入口带红色数字角标，实时显示错题总数。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>九、统计</h3>
+                    <ul>
+                        <li>每次完成一套练习，会记录一条：时间、题型、套题名、正确数、总题数。</li>
+                        <li>统计页顶部展示：练习次数、累计题数、平均正确率、当前错题数。</li>
+                        <li>「最近练习记录」展示最近 10 条；「按题型汇总」按挖空 / 单词 / 单选分别统计练习次数、正确数和正确率。</li>
+                        <li>练习记录最多保留 200 条，超出后自动丢弃最早的。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>十、数据存储与隐私</h3>
+                    <ul>
+                        <li>所有数据（题库、练习记录、错题本）都保存在浏览器 <code>localStorage</code>，<strong>不上传任何服务器</strong>。</li>
+                        <li>换设备、换浏览器、清除浏览器数据后，数据不会自动同步或恢复。</li>
+                        <li>想把题库分享给别人，请用「导出 JSON」→ 对方导入的方式显式传递。</li>
+                        <li>同一台电脑同一浏览器用 <code>file://</code> 打开时，不同 HTML 文件可能共享 localStorage；部署到服务器或 <code>localhost</code> 时按域名隔离，更干净。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>十一、常见问题</h3>
+                    <ul>
+                        <li><strong>导入报「JSON 解析失败」</strong>：检查文件是否是合法 JSON（引号、逗号、括号是否配对），可用在线 JSON 校验工具检查。</li>
+                        <li><strong>导入报「缺少字段」</strong>：确认有 <code>information</code>、<code>information.type</code>、<code>quetions</code> 三个字段。</li>
+                        <li><strong>导入报「type 必须是…」</strong>：<code>information.type</code> 只能填 <code>word</code> / <code>choice</code> / <code>blank</code>，注意大小写。</li>
+                        <li><strong>挖空题检查总是错</strong>：答案比较是严格匹配（去除首尾空格），标点、空格、全半角都要一致。</li>
+                        <li><strong>单词检查总是错</strong>：单词比较忽略大小写，但拼写必须一致，注意空格和连字符。</li>
+                        <li><strong>单选题总判错</strong>：<code>answer</code> 是<strong>从 0 开始的索引</strong>，不是选项文字。A 填 <code>"0"</code>，B 填 <code>"1"</code>。</li>
+                        <li><strong>刷新后数据没了</strong>：可能清除了浏览器数据，或用无痕模式打开。localStorage 只存在于当前浏览器。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>十二、用 AI 生成题目 JSON</h3>
+                    <p>如果不想手动写 JSON，可以把下面这段提示词复制给 AI（如 ChatGPT、Claude、DeepSeek 等），在留空处填上自己的知识点和要求，让 AI 按 StudyMate 的格式输出一套题目。提示词已约束 AI 只能基于用户提供的材料出题，不得凭空编造。</p>
+                    <p><strong>使用方法：</strong></p>
+                    <ol>
+                        <li>点右下角「复制提示词」。</li>
+                        <li>把提示词粘贴到 AI 对话框。</li>
+                        <li>把「【在此填写知识点 / 教材范围 / 题目要求】」整段替换成实际内容，例如课文原文、单词表、考点列表、题目数量、难度等。</li>
+                        <li>发送后，把 AI 返回的 JSON 保存为 <code>.json</code> 文件，在「题库」页导入。</li>
+                    </ol>
+                    <div class="prompt-box">
+                        <button class="prompt-copy-btn" id="copyPromptBtn">复制提示词</button>
+                        <pre id="aiPromptText">你是一个严格遵守格式的题目生成助手。请根据我提供的知识点材料，生成一套可直接导入 StudyMate 的 JSON 题目。
+
+【硬性要求】
+1. 只输出 JSON，不要输出任何解释、Markdown 代码块标记（如 ```json）、前后缀文字。
+2. JSON 必须能被 JSON.parse 直接解析，不能有注释、不能有尾随逗号。
+3. 只能基于我提供的材料出题，不得编造材料中没有的事实、数据、人名、年份。材料未覆盖的内容不要出题。
+4. 题目数量、难度、题型以我的要求为准；如果我没指定，默认出 5 道题，难度中等。
+5. 题目内容使用简体中文；英文单词题除外。
+
+【JSON 结构】
+{
+  "information": {
+    "title": "套题名称",
+    "type": "word 或 choice 或 blank",
+    "tag": ["标签1", "标签2"],
+    "auther": "AI 生成"
+  },
+  "quetions": {
+    "1": { },
+    "2": { }
+  }
+}
+
+【字段规则】
+- information.title：套题名称，简洁概括内容。
+- information.type：整套题只能是一种题型，取值为 "word" / "choice" / "blank" 之一。
+- information.tag：字符串数组，放科目、年级、章节等标签。
+- information.auther：固定填 "AI 生成"。
+- quetions：对象，键为 "1"、"2"、"3"… 的字符串编号，值为题目对象。
+
+【三种题型的题目字段】
+1. type = "word"（单词卡片）：
+   { "word": "中文释义", "ranslation": "英文单词或短语" }
+   注意字段名是 ranslation（项目约定拼写），不要改成 translation。
+
+2. type = "choice"（单选题）：
+   {
+     "quetion": "题干文字",
+     "Option": ["选项A", "选项B", "选项C", "选项D"],
+     "answer": "正确选项的索引，从 0 开始，字符串形式"
+   }
+   - Option 必须是 4 个字符串。
+   - answer 是 "0" / "1" / "2" / "3"，对应 A / B / C / D。
+   - 四个选项要互斥，只有一个正确，干扰项要合理但明确错误。
+
+3. type = "blank"（知识挖空）：
+   {
+     "quetion": "题干，用连续两个及以上下划线 ____ 表示一个空位",
+     "answer": "标准答案"
+   }
+   - 一道题只挖一个空，避免多空导致判分歧义。
+   - 答案与题干中的空位一一对应，答案要唯一、明确、可在材料中直接找到依据。
+
+【我提供的材料与要求】
+【在此填写知识点 / 教材范围 / 题目要求】
+例如：
+- 材料：辛亥革命发生于1911年，推翻了清朝统治，结束了中国两千多年的君主专制制度，建立了中华民国。
+- 题型：choice
+- 数量：3 道
+- 难度：中等
+- 要求：考查时间、历史意义、政治制度变化
+
+【输出检查】
+输出前自检：
+- 是否为合法 JSON（无注释、无尾随逗号、引号配对）。
+- information.type 是否只有一种题型。
+- 每道题字段是否与对应题型完全一致。
+- 单选题 answer 是否为 "0"~"3" 的字符串。
+- 挖空题是否只有一个 ____ 且 answer 与之对应。
+- 是否只用了材料中的信息，没有编造。
+
+确认无误后，直接输出 JSON。</pre>
+                    </div>
+                    <p style="color:#94a3b8;font-size:0.88rem;">提示：AI 生成的题目建议导入后先自己过一遍，确认事实和答案正确再用于复习。若 AI 输出被 Markdown 代码块包裹，保存时去掉首尾的 ``` 标记即可。</p>
+                </div>
+
+                <div class="doc-footer">
+                    本文档内容由 AI 编写，可能存在疏漏或与最新版本不一致之处。<br>
+                    若有疑问，请联系作者"
+                </div>
+            </section>
+
+            <!-- ===== 关于 ===== -->
+            <section class="view" id="view-about">
+                <h2 class="page-title">关于</h2>
+                <p class="page-sub">StudyMate 的定位、技术实现与版本信息。</p>
+                <div class="about-card">
+                    <h2>关于 StudyMate</h2>
+                    <p>StudyMate 是一个面向个人学习者的轻量复习助手，帮助你用三种方式反复巩固知识：</p>
+                    <p>📝 <strong>知识语句挖空</strong>：把定义、事件、概念中的关键词挖空，练习回忆与填写。</p>
+                    <p>🃏 <strong>英语单词短语填写</strong>：看中文填写英文，检查对错，适合单词和术语。</p>
+                    <p>✅ <strong>单选题问答</strong>：四选一自测，立即反馈对错。</p>
+                    <p>📕 <strong>错题本</strong>：自动收录错题，可一键转为新题库做专项练习。</p>
+                    <p>所有题目由用户以 JSON 文件导入或用编辑工作台自主制作，数据仅保存在浏览器本地（localStorage），不上传任何服务器。支持把套题导出为 JSON 文件分享给别人。项目使用原生 HTML / CSS / JavaScript 构建。</p>
+
+                    <p><strong>项目仓库</strong>：<a href="https://github.com/GoodView-12/tools" target="_blank" rel="noopener">github.com/GoodView-12/tools</a></p>
+                    <p><strong>博客</strong>：<a href="https://goodview-12.github.io/blog" target="_blank" rel="noopener">goodview-12.github.io/blog</a></p>
+
+                    <p><span class="version">版本 beta0.1.0</span></p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        /* ===== 问候语 ===== */
+        function Greeting() {
+            const now_time = new Date().getHours();
+            let text = '';
+            if (now_time < 7) text = '凌晨好';
+            else if (now_time < 10) text = '早上好';
+            else if (now_time < 12) text = '上午好';
+            else if (now_time === 12) text = '中午好';
+            else if (now_time < 19) text = '下午好';
+            else if (now_time < 23) text = '晚上好';
+            else text = '夜深了';
+            const el = document.getElementById('greeting');
+            if (el) el.textContent = text + "，欢迎使用 StudyMate";
+        }
+        Greeting();
+
+        /* ===== 侧边栏收起 ===== */
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        });
+
+        /* ===== 视图切换 ===== */
+        const navButtons = document.querySelectorAll('.btns > button');
+
+        function switchView(viewName) {
+            navButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === viewName);
+            });
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.toggle('active', view.id === `view-${viewName}`);
+            });
+            if (viewName === 'bank') renderBank();
+            if (viewName === 'stats') renderStats();
+            if (viewName === 'wrong') renderWrongBook();
+        }
+
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchView(btn.dataset.view);
+                localStorage.setItem('activeView', btn.dataset.view);
+            });
+        });
+
+        /* =========================================================
+           数据层
+           ========================================================= */
+        const STORAGE_KEY = 'studymate_sets';
+        const RECORD_KEY = 'studymate_records';
+        const WRONG_KEY = 'studymate_wrong';
+        const TYPE_NAMES = { word: '单词卡片', choice: '单选题', blank: '挖空' };
+
+        function genId() {
+            return 'set_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+        }
+
+        function loadSets() {
+            let sets;
+            try { sets = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+            catch (e) { sets = []; }
+            let changed = false;
+            const seen = new Set();
+            sets.forEach(s => {
+                if (!s.id || seen.has(s.id)) { s.id = genId(); changed = true; }
+                seen.add(s.id);
+            });
+            if (changed) saveSets(sets);
+            return sets;
+        }
+        function saveSets(sets) { localStorage.setItem(STORAGE_KEY, JSON.stringify(sets)); }
+        function getSetsByType(type) {
+            return loadSets().filter(s => s.information && s.information.type === type);
+        }
+        function countQuestions(set) { return Object.keys(set.quetions || {}).length; }
+
+        function refreshCounts() {
+            const sets = loadSets();
+            const count = { blank: 0, word: 0, choice: 0 };
+            sets.forEach(s => {
+                const t = s.information && s.information.type;
+                if (count[t] !== undefined) count[t]++;
+            });
+            document.getElementById('count-blank').textContent = `已导入 ${count.blank} 套`;
+            document.getElementById('count-word').textContent = `已导入 ${count.word} 套`;
+            document.getElementById('count-choice').textContent = `已导入 ${count.choice} 套`;
+        }
+        refreshCounts();
+
+        /* ===== 练习记录 ===== */
+        function loadRecords() {
+            try { return JSON.parse(localStorage.getItem(RECORD_KEY)) || []; }
+            catch (e) { return []; }
+        }
+        function saveRecords(records) { localStorage.setItem(RECORD_KEY, JSON.stringify(records)); }
+        function addRecord(record) {
+            const records = loadRecords();
+            records.push(record);
+            if (records.length > 200) records.splice(0, records.length - 200);
+            saveRecords(records);
+        }
+
+        /* =========================================================
+           错题本数据层
+           ========================================================= */
+        function loadWrong() {
+            try { return JSON.parse(localStorage.getItem(WRONG_KEY)) || []; }
+            catch (e) { return []; }
+        }
+        function saveWrong(list) { localStorage.setItem(WRONG_KEY, JSON.stringify(list)); }
+
+        function questionFingerprint(type, q) {
+            if (type === 'word') return `word::${q.word || ''}::${q.ranslation || ''}`;
+            if (type === 'choice') return `choice::${q.quetion || ''}::${(q.Option || []).join('|')}`;
+            return `blank::${q.quetion || ''}::${q.answer || ''}`;
+        }
+
+        function answerOf(type, q) {
+            if (type === 'word') return q.ranslation || '';
+            if (type === 'choice') {
+                const idx = Number(q.answer);
+                const opt = (q.Option || [])[idx];
+                return opt !== undefined ? `${String.fromCharCode(65 + idx)}. ${opt}` : '';
+            }
+            return q.answer || '';
+        }
+
+        function addWrong(type, q, sourceTitle) {
+            const list = loadWrong();
+            const fp = questionFingerprint(type, q);
+            const existing = list.find(item => item.fingerprint === fp);
+            if (existing) {
+                existing.wrongCount++;
+                existing.lastWrong = Date.now();
+            } else {
+                list.push({
+                    id: 'wrong_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                    fingerprint: fp,
+                    type,
+                    question: { ...q },
+                    answer: answerOf(type, q),
+                    wrongCount: 1,
+                    lastWrong: Date.now(),
+                    sourceTitle: sourceTitle || '未知套题'
+                });
+            }
+            saveWrong(list);
+            updateWrongBadge();
+        }
+
+        function updateWrongBadge() {
+            const list = loadWrong();
+            const badge = document.getElementById('wrongBadge');
+            if (list.length > 0) {
+                badge.textContent = list.length;
+                badge.style.display = 'inline-flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        /* ===== 导出 JSON ===== */
+        function exportSet(set) {
+            const data = { information: set.information, quetions: set.quetions };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safeTitle = (set.information.title || '题目套').replace(/[\\/:*?"<>|]/g, '_');
+            a.href = url;
+            a.download = safeTitle + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            bankMsg.textContent = '已导出：' + safeTitle + '.json';
+            bankMsg.className = 'import-msg ok';
+            setTimeout(() => { bankMsg.textContent = ''; }, 2500);
+        }
+
+        /* ===== 文件导入（题库页） ===== */
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const importBtn = document.getElementById('importBtn');
+        const importMsg = document.getElementById('importMsg');
+        let pendingData = null;
+
+        function setImportMsg(text, ok) {
+            importMsg.textContent = text;
+            importMsg.className = 'import-msg ' + (ok ? 'ok' : 'err');
+        }
+
+        fileInput.addEventListener('change', () => {
+            pendingData = null;
+            importBtn.disabled = true;
+            setImportMsg('', true);
+            const file = fileInput.files[0];
+            if (!file) { fileName.textContent = '未选择文件'; return; }
+            fileName.textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                let data;
+                try { data = JSON.parse(e.target.result); }
+                catch (err) { setImportMsg('JSON 解析失败：' + err.message, false); return; }
+                if (!data.information || !data.information.type || !data.quetions) {
+                    setImportMsg('缺少 information / information.type / quetions 字段', false); return;
+                }
+                if (!['word', 'choice', 'blank'].includes(data.information.type)) {
+                    setImportMsg('information.type 必须是 word / choice / blank 之一', false); return;
+                }
+                pendingData = data;
+                importBtn.disabled = false;
+                setImportMsg('文件已读取，点击「导入」写入题库', true);
+            };
+            reader.onerror = () => setImportMsg('文件读取失败', false);
+            reader.readAsText(file, 'utf-8');
+        });
+
+        importBtn.addEventListener('click', () => {
+            if (!pendingData) return;
+            const sets = loadSets();
+            const newSet = { id: genId(), information: pendingData.information, quetions: pendingData.quetions };
+            sets.push(newSet);
+            saveSets(sets);
+            refreshCounts();
+            renderBank();
+            setImportMsg('导入成功：' + newSet.information.title, true);
+            fileInput.value = '';
+            fileName.textContent = '未选择文件';
+            importBtn.disabled = true;
+            pendingData = null;
+        });
+
+        /* ===== 选套面板 ===== */
+        const picker = document.getElementById('picker');
+        const pickerTitle = document.getElementById('pickerTitle');
+        const pickerList = document.getElementById('pickerList');
+        let currentPickType = null;
+
+        function openPicker(type) {
+            currentPickType = type;
+            const sets = getSetsByType(type);
+            picker.style.display = 'block';
+            pickerTitle.textContent = `选择一套「${TYPE_NAMES[type]}」题目`;
+            if (!sets.length) {
+                pickerList.innerHTML = `<div class="empty-tip">还没有该题型的题目，请先去「题库」页导入或创建。</div>`;
+                picker.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+            }
+            pickerList.innerHTML = sets.map(set => {
+                const info = set.information;
+                const tags = (info.tag || []).map(t => `<span class="tag">${t}</span>`).join('');
+                return `<div class="picker-item" data-id="${set.id}">
+                    <div class="pi-main">
+                        <div class="pi-title">${info.title || '未命名'}</div>
+                        <div class="pi-meta">${info.auther || '匿名'} ${tags}</div>
+                    </div>
+                    <div class="pi-count">${countQuestions(set)} 题</div>
+                </div>`;
+            }).join('');
+
+            pickerList.querySelectorAll('.picker-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const set = getSetsByType(currentPickType).find(s => s.id === el.dataset.id);
+                    if (set) startQuiz(type, set);
+                });
+            });
+            picker.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        document.querySelectorAll('.practice-card').forEach(card => {
+            card.addEventListener('click', () => openPicker(card.dataset.type));
+        });
+
+        /* =========================================================
+           答题视图
+           ========================================================= */
+        const quizView = document.createElement('section');
+        quizView.className = 'view';
+        quizView.id = 'view-quiz';
+        quizView.innerHTML = `
+            <h2 class="page-title" id="quizTitle">练习</h2>
+            <p class="page-sub" id="quizSub"></p>
+            <div class="quiz-wrap" id="quizWrap"></div>
+            <div style="margin-top:16px;">
+                <button class="btn-ghost" id="backToPractice">← 返回练习</button>
+            </div>`;
+        document.querySelector('.main-content').appendChild(quizView);
+
+        const quizWrap = document.getElementById('quizWrap');
+        const quizTitle = document.getElementById('quizTitle');
+        const quizSub = document.getElementById('quizSub');
+        document.getElementById('backToPractice').addEventListener('click', () => {
+            switchView('practice');
+            currentQuiz = null;
+        });
+
+        let currentQuiz = null;
+
+        function startQuiz(type, set) {
+            const list = Object.values(set.quetions || {});
+            if (!list.length) {
+                alert('这套题没有题目内容。');
+                return;
+            }
+            quizTitle.textContent = TYPE_NAMES[type] + ' · ' + (set.information.title || '未命名');
+            quizSub.textContent = (set.information.auther || '匿名') + ' · 共 ' + list.length + ' 题';
+            currentQuiz = {
+                type,
+                setTitle: set.information.title || '未命名',
+                list,
+                index: 0,
+                results: new Array(list.length).fill(null),
+                userAnswers: new Array(list.length).fill(''),
+                selected: -1
+            };
+            switchView('quiz');
+            renderQuiz();
+        }
+
+        function answeredCount() {
+            return currentQuiz.results.filter(r => r !== null).length;
+        }
+        function correctCount() {
+            return currentQuiz.results.filter(r => r === true).length;
+        }
+
+        function renderQuizTop() {
+            const total = currentQuiz.list.length;
+            const done = answeredCount();
+            const correct = correctCount();
+            const percent = total ? Math.round(done / total * 100) : 0;
+            return `<div class="quiz-top">
+                <div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:${percent}%"></div></div>
+                <span class="quiz-progress-text">${done} / ${total}</span>
+                <span class="quiz-score-text">正确 ${correct}</span>
+            </div>`;
+        }
+
+        function renderQuizNav() {
+            return `<div class="quiz-nav">` + currentQuiz.list.map((_, i) => {
+                const r = currentQuiz.results[i];
+                let cls = 'quiz-nav-dot';
+                if (i === currentQuiz.index) cls += ' current';
+                else if (r === true) cls += ' correct';
+                else if (r === false) cls += ' wrong';
+                return `<button class="${cls}" data-jump="${i}">${i + 1}</button>`;
+            }).join('') + `</div>`;
+        }
+
+        function bindQuizNav() {
+            quizWrap.querySelectorAll('[data-jump]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentQuiz.index = Number(btn.dataset.jump);
+                    currentQuiz.selected = -1;
+                    renderQuiz();
+                });
+            });
+        }
+
+        function renderQuiz() {
+            if (!currentQuiz) return;
+            if (currentQuiz.type === 'blank') renderBlank();
+            else if (currentQuiz.type === 'word') renderWord();
+            else renderChoice();
+        }
+
+        /* ---------- 挖空 ---------- */
+        function renderBlank() {
+            const q = currentQuiz.list[currentQuiz.index];
+            const total = currentQuiz.list.length;
+            const idx = currentQuiz.index + 1;
+            const done = currentQuiz.results[currentQuiz.index] !== null;
+            const stemHtml = (q.quetion || '').replace(/_{2,}/g,
+                '<input class="blank-input" id="blankInput" autocomplete="off" />');
+
+            quizWrap.innerHTML = `
+                ${renderQuizTop()}
+                <div class="progress-text">第 ${idx} / ${total} 题</div>
+                <div class="quiz-question">${stemHtml}</div>
+                <div class="quiz-actions">
+                    <button class="btn-primary" id="checkBlank">检查</button>
+                    <button class="btn-ghost" id="nextBlank">下一题</button>
+                </div>
+                <div class="quiz-feedback" id="blankFeedback"></div>
+                ${renderQuizNav()}
+            `;
+            const input = document.getElementById('blankInput');
+            const fb = document.getElementById('blankFeedback');
+
+            if (done) {
+                input.value = currentQuiz.userAnswers[currentQuiz.index] || '';
+                input.classList.add(currentQuiz.results[currentQuiz.index] ? 'correct' : 'wrong');
+                if (currentQuiz.results[currentQuiz.index]) {
+                    fb.textContent = '✅ 回答正确';
+                    fb.className = 'quiz-feedback ok';
+                } else {
+                    fb.textContent = '❌ 回答错误，正确答案：' + String(q.answer || '');
+                    fb.className = 'quiz-feedback err';
+                }
+            } else {
+                input.focus();
+            }
+
+            document.getElementById('checkBlank').addEventListener('click', () => {
+                if (currentQuiz.results[currentQuiz.index] !== null) return;
+                const val = (input.value || '').trim();
+                const ans = String(q.answer || '').trim();
+                const ok = val === ans;
+                currentQuiz.userAnswers[currentQuiz.index] = val;
+                currentQuiz.results[currentQuiz.index] = ok;
+                if (!ok) addWrong('blank', q, currentQuiz.setTitle);
+                renderQuiz();
+            });
+
+            document.getElementById('nextBlank').addEventListener('click', goNext);
+            bindQuizNav();
+        }
+
+        /* ---------- 单词填写 ---------- */
+        function renderWord() {
+            const q = currentQuiz.list[currentQuiz.index];
+            const total = currentQuiz.list.length;
+            const idx = currentQuiz.index + 1;
+            const done = currentQuiz.results[currentQuiz.index] !== null;
+            const zh = q.word || '';
+            const en = q.ranslation || '';
+
+            quizWrap.innerHTML = `
+                ${renderQuizTop()}
+                <div class="progress-text">第 ${idx} / ${total} 题</div>
+                <div class="word-fill">
+                    <div class="word-zh">${zh}</div>
+                    <div class="word-hint">请填写对应的英文单词 / 短语</div>
+                    <input class="blank-input" id="wordInput" autocomplete="off" placeholder="输入英文" />
+                    ${done ? `<div class="word-answer-reveal ${currentQuiz.results[currentQuiz.index] ? '' : 'wrong'}" id="wordReveal">
+                        ${currentQuiz.results[currentQuiz.index] ? '✅ 回答正确' : '❌ 回答错误，正确答案：' + en}
+                    </div>` : ''}
+                </div>
+                <div class="quiz-actions">
+                    <button class="btn-primary" id="checkWord">检查</button>
+                    <button class="btn-ghost" id="nextWord">下一题</button>
+                </div>
+                <div class="quiz-feedback" id="wordFeedback"></div>
+                ${renderQuizNav()}
+            `;
+            const input = document.getElementById('wordInput');
+            const fb = document.getElementById('wordFeedback');
+
+            if (done) {
+                input.value = currentQuiz.userAnswers[currentQuiz.index] || '';
+                input.classList.add(currentQuiz.results[currentQuiz.index] ? 'correct' : 'wrong');
+                if (currentQuiz.results[currentQuiz.index]) {
+                    fb.textContent = '✅ 回答正确';
+                    fb.className = 'quiz-feedback ok';
+                } else {
+                    fb.textContent = '❌ 回答错误，正确答案：' + en;
+                    fb.className = 'quiz-feedback err';
+                }
+            } else {
+                input.focus();
+            }
+
+            document.getElementById('checkWord').addEventListener('click', () => {
+                if (currentQuiz.results[currentQuiz.index] !== null) return;
+                const val = (input.value || '').trim();
+                const ans = String(en).trim();
+                const ok = val.toLowerCase() === ans.toLowerCase();
+                currentQuiz.userAnswers[currentQuiz.index] = val;
+                currentQuiz.results[currentQuiz.index] = ok;
+                if (!ok) addWrong('word', q, currentQuiz.setTitle);
+                renderQuiz();
+            });
+
+            document.getElementById('nextWord').addEventListener('click', goNext);
+            bindQuizNav();
+        }
+
+        /* ---------- 单选题 ---------- */
+        function renderChoice() {
+            const q = currentQuiz.list[currentQuiz.index];
+            const total = currentQuiz.list.length;
+            const idx = currentQuiz.index + 1;
+            const options = q.Option || [];
+            const answerIndex = String(q.answer);
+            const answered = currentQuiz.results[currentQuiz.index] !== null;
+
+            const optionsHtml = options.map((opt, i) => {
+                let cls = 'option-item';
+                if (answered) {
+                    cls += ' disabled';
+                    if (String(i) === answerIndex) cls += ' correct';
+                    else if (i === currentQuiz.selected) cls += ' wrong';
+                } else if (i === currentQuiz.selected) {
+                    cls += ' selected';
+                }
+                return `<div class="${cls}" data-index="${i}"><span>${String.fromCharCode(65 + i)}.</span><span>${opt}</span></div>`;
+            }).join('');
+
+            quizWrap.innerHTML = `
+                ${renderQuizTop()}
+                <div class="progress-text">第 ${idx} / ${total} 题</div>
+                <div class="quiz-question">${q.quetion || ''}</div>
+                <div class="option-list" id="optionList">${optionsHtml}</div>
+                <div class="quiz-actions">
+                    <button class="btn-primary" id="checkChoice">提交答案</button>
+                    <button class="btn-ghost" id="nextChoice">下一题</button>
+                </div>
+                <div class="quiz-feedback" id="choiceFeedback"></div>
+                ${renderQuizNav()}
+            `;
+
+            const optionEls = document.querySelectorAll('#optionList .option-item');
+            optionEls.forEach(el => {
+                el.addEventListener('click', () => {
+                    if (answered) return;
+                    optionEls.forEach(o => o.classList.remove('selected'));
+                    el.classList.add('selected');
+                    currentQuiz.selected = Number(el.dataset.index);
+                });
+            });
+
+            const fb = document.getElementById('choiceFeedback');
+            if (answered) {
+                if (currentQuiz.results[currentQuiz.index]) {
+                    fb.textContent = '✅ 回答正确';
+                    fb.className = 'quiz-feedback ok';
+                } else {
+                    fb.textContent = '❌ 回答错误，正确答案：' + String.fromCharCode(65 + Number(answerIndex));
+                    fb.className = 'quiz-feedback err';
+                }
+            }
+
+            document.getElementById('checkChoice').addEventListener('click', () => {
+                if (answered) return;
+                if (currentQuiz.selected < 0) {
+                    fb.textContent = '请先选择一个选项'; fb.className = 'quiz-feedback err';
+                    return;
+                }
+                const ok = String(currentQuiz.selected) === answerIndex;
+                currentQuiz.results[currentQuiz.index] = ok;
+                if (!ok) addWrong('choice', q, currentQuiz.setTitle);
+                renderQuiz();
+            });
+            document.getElementById('nextChoice').addEventListener('click', goNext);
+            bindQuizNav();
+        }
+
+        /* ---------- 导航与结果 ---------- */
+        function goNext() {
+            if (currentQuiz.index < currentQuiz.list.length - 1) {
+                currentQuiz.index++;
+                currentQuiz.selected = -1;
+                renderQuiz();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            const total = currentQuiz.list.length;
+            const correct = correctCount();
+            const wrong = total - correct;
+            const percent = total ? Math.round(correct / total * 100) : 0;
+            const emoji = percent === 100 ? '🎉' : percent >= 80 ? '👍' : percent >= 60 ? '💪' : '📚';
+
+            addRecord({
+                time: Date.now(),
+                type: currentQuiz.type,
+                title: currentQuiz.setTitle,
+                correct,
+                total
+            });
+
+            quizWrap.innerHTML = `
+                <div class="result-card">
+                    <div class="result-emoji">${emoji}</div>
+                    <h3>练习完成</h3>
+                    <div class="result-score">正确率 ${percent}%</div>
+                    <div class="result-stats">
+                        <div class="result-stat correct">
+                            <div class="rs-num">${correct}</div>
+                            <div class="rs-label">正确</div>
+                        </div>
+                        <div class="result-stat wrong">
+                            <div class="rs-num">${wrong}</div>
+                            <div class="rs-label">错误 / 未答</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="rs-num">${total}</div>
+                            <div class="rs-label">总题数</div>
+                        </div>
+                    </div>
+                    <div class="quiz-actions" style="justify-content:center;">
+                        <button class="btn-primary" id="restartQuiz">重新开始</button>
+                        <button class="btn-ghost" id="backToPicker">选择其他套题</button>
+                        <button class="btn-ghost" id="goStats">查看统计</button>
+                        ${wrong > 0 ? `<button class="btn-ghost" id="goWrong">去错题本</button>` : ''}
+                    </div>
+                </div>
+            `;
+            document.getElementById('restartQuiz').addEventListener('click', () => {
+                currentQuiz.index = 0;
+                currentQuiz.results = new Array(currentQuiz.list.length).fill(null);
+                currentQuiz.userAnswers = new Array(currentQuiz.list.length).fill('');
+                currentQuiz.selected = -1;
+                renderQuiz();
+            });
+            document.getElementById('backToPicker').addEventListener('click', () => {
+                switchView('practice');
+                openPicker(currentQuiz.type);
+            });
+            document.getElementById('goStats').addEventListener('click', () => switchView('stats'));
+            const goWrongBtn = document.getElementById('goWrong');
+            if (goWrongBtn) goWrongBtn.addEventListener('click', () => switchView('wrong'));
+        }
+
+        /* =========================================================
+           题库页
+           ========================================================= */
+        const bankList = document.getElementById('bankList');
+        const bankMsg = document.getElementById('bankMsg');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        let currentFilter = 'all';
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderBank();
+            });
+        });
+
+        function renderBank() {
+            const sets = loadSets();
+            const filtered = currentFilter === 'all' ? sets : sets.filter(s => s.information && s.information.type === currentFilter);
+            if (!filtered.length) {
+                bankList.innerHTML = `<div class="empty-tip">还没有导入或创建题目。使用上方导入 JSON 文件，或点「＋ 新建题目套」制作。</div>`;
+                return;
+            }
+            bankList.innerHTML = filtered.map(set => {
+                const info = set.information;
+                const tags = (info.tag || []).map(t => `<span class="tag">${t}</span>`).join('');
+                const typeTag = `<span class="tag type-${info.type}">${TYPE_NAMES[info.type] || info.type}</span>`;
+                const qList = Object.values(set.quetions || {});
+                const previewItems = qList.slice(0, 3).map(q => {
+                    if (info.type === 'word') return `<div>${q.word || ''}</div>`;
+                    if (info.type === 'choice') {
+                        const opts = (q.Option || []).map(o => o).join(' / ');
+                        return `<div>${q.quetion || ''}（${opts}）</div>`;
+                    }
+                    return `<div>${q.quetion || ''}</div>`;
+                }).join('');
+                return `<div class="bank-item" data-id="${set.id}">
+                    <div class="bi-head">
+                        <div class="bi-title">${info.title || '未命名'}</div>
+                        <div class="bi-actions">
+                            <button class="btn-ghost btn-sm" data-action="edit" data-id="${set.id}">编辑</button>
+                            <button class="btn-ghost btn-sm" data-action="preview" data-id="${set.id}">查看详情</button>
+                            <button class="btn-ghost btn-sm" data-action="export" data-id="${set.id}">导出 JSON</button>
+                            <button class="btn-danger btn-sm" data-action="delete" data-id="${set.id}">删除</button>
+                        </div>
+                    </div>
+                    <div class="bi-meta">${typeTag}${tags}</div>
+                    <div class="bi-sub">作者：${info.auther || '匿名'} · 共 ${qList.length} 题</div>
+                    <div class="bi-preview">${previewItems || '（无题目）'}</div>
+                </div>`;
+            }).join('');
+
+            bankList.onclick = (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const id = btn.dataset.id;
+                if (action === 'delete') deleteSet(id);
+                else if (action === 'preview') previewSet(id);
+                else if (action === 'edit') openEditor(id);
+                else if (action === 'export') {
+                    const set = loadSets().find(s => s.id === id);
+                    if (set) exportSet(set);
+                }
+            };
+        }
+
+        function deleteSet(id) {
+            if (!confirm('确定删除这套题目吗？删除后不可恢复。')) return;
+            const sets = loadSets().filter(s => s.id !== id);
+            saveSets(sets);
+            refreshCounts();
+            renderBank();
+            bankMsg.textContent = '已删除';
+            bankMsg.className = 'import-msg ok';
+            setTimeout(() => { bankMsg.textContent = ''; }, 2000);
+        }
+
+        function previewSet(id) {
+            const set = loadSets().find(s => s.id === id);
+            if (!set) return;
+            const info = set.information;
+            const qList = Object.entries(set.quetions || {});
+            const lines = qList.map(([k, q]) => {
+                if (info.type === 'word') return `#${k}  ${q.word || ''}`;
+                if (info.type === 'choice') {
+                    const opts = (q.Option || []).map((o, i) => `${String.fromCharCode(65 + i)}.${o}`).join('  ');
+                    return `#${k}  ${q.quetion || ''}\n     ${opts}`;
+                }
+                return `#${k}  ${q.quetion || ''}`;
+            }).join('\n\n');
+            alert(`${info.title || '未命名'}\n作者：${info.auther || '匿名'}\n题型：${TYPE_NAMES[info.type] || info.type}\n共 ${qList.length} 题\n\n（预览不含答案）\n\n${lines}`);
+        }
+
+        /* =========================================================
+           错题本视图
+           ========================================================= */
+        const wrongContent = document.getElementById('wrongContent');
+        const wrongMsg = document.getElementById('wrongMsg');
+        const clearWrongBtn = document.getElementById('clearWrongBtn');
+
+        function renderWrongBook() {
+            const list = loadWrong();
+            updateWrongBadge();
+
+            if (!list.length) {
+                wrongContent.innerHTML = `<div class="wrong-empty">
+                    <div style="font-size:2rem;margin-bottom:8px;">🎉</div>
+                    <p>错题本是空的。答题时答错的题会自动收进来。</p>
+                </div>`;
+                return;
+            }
+
+            const groups = { blank: [], word: [], choice: [] };
+            list.forEach(item => {
+                if (groups[item.type]) groups[item.type].push(item);
+            });
+
+            wrongContent.innerHTML = Object.entries(groups).map(([type, items]) => {
+                if (!items.length) return '';
+                const itemsHtml = items.map(item => {
+                    const q = item.question;
+                    let contentHtml = '';
+                    if (type === 'word') {
+                        contentHtml = `<div class="wi-content">${q.word || ''}</div>`;
+                    } else if (type === 'choice') {
+                        const opts = (q.Option || []).map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join('　');
+                        contentHtml = `<div class="wi-content">${q.quetion || ''}<br><span style="color:#64748b;font-size:0.85rem;">${opts}</span></div>`;
+                    } else {
+                        contentHtml = `<div class="wi-content">${q.quetion || ''}</div>`;
+                    }
+                    const last = new Date(item.lastWrong);
+                    const lastStr = `${last.getMonth() + 1}/${last.getDate()} ${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
+                    return `<div class="wrong-item">
+                        ${contentHtml}
+                        <div class="wi-answer">正确答案：${item.answer || '（无）'}</div>
+                        <div class="wi-foot">
+                            <span class="wi-meta">错 ${item.wrongCount} 次 · 最近 ${lastStr} · 来自《${item.sourceTitle}》</span>
+                            <button class="btn-ghost btn-sm" data-remove="${item.id}">移除</button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                return `<div class="wrong-group">
+                    <div class="wg-head">
+                        <div class="wg-title">
+                            <span class="tag type-${type}">${TYPE_NAMES[type]}</span>
+                            错题
+                            <span class="wg-count">${items.length} 题</span>
+                        </div>
+                        <button class="btn-primary btn-sm" data-convert="${type}">转为题库</button>
+                    </div>
+                    ${itemsHtml}
+                </div>`;
+            }).join('');
+
+            wrongContent.querySelectorAll('[data-remove]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.remove;
+                    const list = loadWrong().filter(item => item.id !== id);
+                    saveWrong(list);
+                    renderWrongBook();
+                    wrongMsg.textContent = '已移除';
+                    wrongMsg.className = 'import-msg ok';
+                    setTimeout(() => { wrongMsg.textContent = ''; }, 1500);
+                });
+            });
+
+            wrongContent.querySelectorAll('[data-convert]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const type = btn.dataset.convert;
+                    convertWrongToSet(type);
+                });
+            });
+        }
+
+        function convertWrongToSet(type) {
+            const list = loadWrong().filter(item => item.type === type);
+            if (!list.length) return;
+            if (!confirm(`确定把「${TYPE_NAMES[type]}」的 ${list.length} 道错题转为新题库吗？`)) return;
+
+            const quetions = {};
+            list.forEach((item, i) => {
+                quetions[i + 1] = { ...item.question };
+            });
+
+            const now = new Date();
+            const dateStr = `${now.getMonth() + 1}月${now.getDate()}日`;
+            const information = {
+                title: `${TYPE_NAMES[type]} 错题专项（${dateStr}）`,
+                type,
+                tag: ['错题专项', TYPE_NAMES[type]],
+                auther: 'StudyMate 错题本'
+            };
+
+            const sets = loadSets();
+            sets.push({ id: genId(), information, quetions });
+            saveSets(sets);
+            refreshCounts();
+
+            const remaining = loadWrong().filter(item => item.type !== type);
+            saveWrong(remaining);
+            updateWrongBadge();
+
+            wrongMsg.textContent = `已生成「${information.title}」，共 ${list.length} 题，可在题库页查看`;
+            wrongMsg.className = 'import-msg ok';
+            renderWrongBook();
+            setTimeout(() => { wrongMsg.textContent = ''; }, 3000);
+        }
+
+        clearWrongBtn.addEventListener('click', () => {
+            if (!loadWrong().length) {
+                wrongMsg.textContent = '错题本已经是空的';
+                wrongMsg.className = 'import-msg err';
+                setTimeout(() => { wrongMsg.textContent = ''; }, 1500);
+                return;
+            }
+            if (!confirm('确定清空所有错题吗？删除后不可恢复。')) return;
+            saveWrong([]);
+            updateWrongBadge();
+            renderWrongBook();
+            wrongMsg.textContent = '已清空';
+            wrongMsg.className = 'import-msg ok';
+            setTimeout(() => { wrongMsg.textContent = ''; }, 1500);
+        });
+
+        /* =========================================================
+           编辑工作台
+           ========================================================= */
+        const editorTitle = document.getElementById('editorTitle');
+        const edTitle = document.getElementById('edTitle');
+        const edType = document.getElementById('edType');
+        const edTags = document.getElementById('edTags');
+        const edAuthor = document.getElementById('edAuthor');
+        const questionEditors = document.getElementById('questionEditors');
+        const editorMsg = document.getElementById('editorMsg');
+
+        let editingSetId = null;
+        let editorQuestions = [];
+
+        function blankQuestion(type) {
+            if (type === 'word') return { word: '', ranslation: '' };
+            if (type === 'choice') return { quetion: '', Option: ['', '', '', ''], answer: '0' };
+            return { quetion: '', answer: '' };
+        }
+
+        function openEditor(id) {
+            editingSetId = id || null;
+            if (id) {
+                const set = loadSets().find(s => s.id === id);
+                if (!set) return;
+                editorTitle.textContent = '编辑题目套';
+                edTitle.value = set.information.title || '';
+                edType.value = set.information.type || 'word';
+                edTags.value = (set.information.tag || []).join(', ');
+                edAuthor.value = set.information.auther || '';
+                editorQuestions = Object.values(set.quetions || {}).map(q => ({ ...q }));
+            } else {
+                editorTitle.textContent = '新建题目套';
+                edTitle.value = '';
+                edType.value = 'word';
+                edTags.value = '';
+                edAuthor.value = '';
+                editorQuestions = [blankQuestion('word')];
+            }
+            editorMsg.textContent = '';
+            renderQuestionEditors();
+            switchView('editor');
+        }
+
+        edType.addEventListener('change', () => {
+            const newType = edType.value;
+            editorQuestions = editorQuestions.map(q => {
+                if (newType === 'word') return { word: q.word || '', ranslation: q.ranslation || '' };
+                if (newType === 'choice') return {
+                    quetion: q.quetion || '',
+                    Option: (q.Option && q.Option.length === 4) ? q.Option.slice(0, 4) : ['', '', '', ''],
+                    answer: q.answer !== undefined ? String(q.answer) : '0'
+                };
+                return { quetion: q.quetion || '', answer: q.answer || '' };
+            });
+            if (!editorQuestions.length) editorQuestions = [blankQuestion(newType)];
+            renderQuestionEditors();
+        });
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        }
+        function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+
+        function renderQuestionEditors() {
+            const type = edType.value;
+            questionEditors.innerHTML = editorQuestions.map((q, i) => {
+                let fieldsHtml = '';
+                if (type === 'word') {
+                    fieldsHtml = `
+                        <div class="form-field"><label>中文释义</label><input type="text" data-q="${i}" data-field="word" value="${escapeAttr(q.word || '')}" placeholder="例如：苹果"></div>
+                        <div class="form-field"><label>英文 / 短语</label><input type="text" data-q="${i}" data-field="ranslation" value="${escapeAttr(q.ranslation || '')}" placeholder="例如：apple"></div>`;
+                } else if (type === 'choice') {
+                    const opts = q.Option && q.Option.length === 4 ? q.Option : ['', '', '', ''];
+                    const optRows = opts.map((o, oi) => `
+                        <div class="option-row">
+                            <span class="opt-label">${String.fromCharCode(65 + oi)}</span>
+                            <input type="text" data-q="${i}" data-field="option" data-oi="${oi}" value="${escapeAttr(o || '')}" placeholder="选项 ${String.fromCharCode(65 + oi)}">
+                            <input type="radio" class="opt-radio" name="answer-${i}" data-q="${i}" data-answer="${oi}" ${String(q.answer) === String(oi) ? 'checked' : ''}>
+                            <span style="font-size:0.8rem;color:#64748b;">正确</span>
+                        </div>`).join('');
+                    fieldsHtml = `
+                        <div class="form-field"><label>题干</label><textarea data-q="${i}" data-field="quetion" placeholder="例如：辛亥革命爆发于哪一年？">${escapeHtml(q.quetion || '')}</textarea></div>
+                        <div class="form-field"><label>选项（勾选正确答案）</label>${optRows}</div>`;
+                } else {
+                    fieldsHtml = `
+                        <div class="form-field"><label>题干（用 ____ 表示空位）</label><textarea data-q="${i}" data-field="quetion" placeholder="例如：辛亥革命是一场____性质的革命。">${escapeHtml(q.quetion || '')}</textarea></div>
+                        <div class="form-field"><label>答案</label><input type="text" data-q="${i}" data-field="answer" value="${escapeAttr(q.answer || '')}" placeholder="例如：资产阶级民主"></div>`;
+                }
+                return `<div class="question-editor">
+                    <div class="qe-head"><span class="qe-index">第 ${i + 1} 题</span><button class="qe-del" data-del="${i}">删除</button></div>
+                    <div class="qe-fields">${fieldsHtml}</div>
+                </div>`;
+            }).join('');
+
+            questionEditors.querySelectorAll('[data-del]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const i = Number(btn.dataset.del);
+                    editorQuestions.splice(i, 1);
+                    if (!editorQuestions.length) editorQuestions.push(blankQuestion(edType.value));
+                    renderQuestionEditors();
+                });
+            });
+
+            questionEditors.querySelectorAll('input[type="text"], textarea').forEach(inp => {
+                inp.addEventListener('input', () => {
+                    const i = Number(inp.dataset.q);
+                    const field = inp.dataset.field;
+                    if (field === 'option') {
+                        const oi = Number(inp.dataset.oi);
+                        if (!editorQuestions[i].Option) editorQuestions[i].Option = ['', '', '', ''];
+                        editorQuestions[i].Option[oi] = inp.value;
+                    } else {
+                        editorQuestions[i][field] = inp.value;
+                    }
+                });
+            });
+
+            questionEditors.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const i = Number(radio.dataset.q);
+                    editorQuestions[i].answer = radio.dataset.answer;
+                });
+            });
+        }
+
+        document.getElementById('addQuestionBtn').addEventListener('click', () => {
+            editorQuestions.push(blankQuestion(edType.value));
+            renderQuestionEditors();
+            const last = questionEditors.lastElementChild;
+            if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        document.getElementById('saveEditorBtn').addEventListener('click', () => {
+            const title = edTitle.value.trim();
+            if (!title) { editorMsg.textContent = '请填写标题'; editorMsg.className = 'import-msg err'; return; }
+            if (!editorQuestions.length) { editorMsg.textContent = '至少添加一道题'; editorMsg.className = 'import-msg err'; return; }
+            const type = edType.value;
+            for (let i = 0; i < editorQuestions.length; i++) {
+                const q = editorQuestions[i];
+                if (type === 'word' && (!q.word || !q.ranslation)) { editorMsg.textContent = `第 ${i + 1} 题：中文和英文都要填`; editorMsg.className = 'import-msg err'; return; }
+                if (type === 'choice') {
+                    if (!q.quetion) { editorMsg.textContent = `第 ${i + 1} 题：题干不能为空`; editorMsg.className = 'import-msg err'; return; }
+                    if (!q.Option || q.Option.some(o => !o)) { editorMsg.textContent = `第 ${i + 1} 题：四个选项都要填`; editorMsg.className = 'import-msg err'; return; }
+                }
+                if (type === 'blank' && (!q.quetion || !q.answer)) { editorMsg.textContent = `第 ${i + 1} 题：题干和答案都要填`; editorMsg.className = 'import-msg err'; return; }
+            }
+
+            const quetions = {};
+            editorQuestions.forEach((q, i) => {
+                if (type === 'word') quetions[i + 1] = { word: q.word, ranslation: q.ranslation };
+                else if (type === 'choice') quetions[i + 1] = { quetion: q.quetion, Option: q.Option.slice(0, 4), answer: String(q.answer) };
+                else quetions[i + 1] = { quetion: q.quetion, answer: q.answer };
+            });
+
+            const information = {
+                title, type,
+                tag: edTags.value.split(',').map(t => t.trim()).filter(Boolean),
+                auther: edAuthor.value.trim() || '匿名'
+            };
+
+            const sets = loadSets();
+            if (editingSetId) {
+                const idx = sets.findIndex(s => s.id === editingSetId);
+                if (idx >= 0) sets[idx] = { id: editingSetId, information, quetions };
+                else sets.push({ id: genId(), information, quetions });
+            } else {
+                sets.push({ id: genId(), information, quetions });
+            }
+            saveSets(sets);
+            refreshCounts();
+            editorMsg.textContent = '已保存';
+            editorMsg.className = 'import-msg ok';
+            setTimeout(() => { switchView('bank'); editingSetId = null; }, 500);
+        });
+
+        document.getElementById('cancelEditorBtn').addEventListener('click', () => {
+            if (confirm('确定取消吗？未保存的内容会丢失。')) {
+                editingSetId = null;
+                switchView('bank');
+            }
+        });
+
+        document.getElementById('newSetBtn').addEventListener('click', () => openEditor(null));
+
+        /* =========================================================
+           统计页
+           ========================================================= */
+        function renderStats() {
+            const records = loadRecords();
+            const total = records.length;
+            const totalCorrect = records.reduce((s, r) => s + r.correct, 0);
+            const totalQuestions = records.reduce((s, r) => s + r.total, 0);
+            const avgRate = totalQuestions ? Math.round(totalCorrect / totalQuestions * 100) : 0;
+
+            document.getElementById('statsSummary').innerHTML = `
+                <div class="stat-card"><div class="sc-num">${total}</div><div class="sc-label">练习次数</div></div>
+                <div class="stat-card"><div class="sc-num">${totalQuestions}</div><div class="sc-label">累计题数</div></div>
+                <div class="stat-card"><div class="sc-num">${avgRate}%</div><div class="sc-label">平均正确率</div></div>
+                <div class="stat-card"><div class="sc-num">${loadWrong().length}</div><div class="sc-label">错题数</div></div>
+            `;
+
+            const recent = records.slice(-10).reverse();
+            document.getElementById('statsRecent').innerHTML = recent.length
+                ? `<table class="stats-table">
+                    <thead><tr><th>时间</th><th>题型</th><th>套题</th><th>正确 / 总题</th><th>正确率</th></tr></thead>
+                    <tbody>${recent.map(r => {
+                        const rate = r.total ? Math.round(r.correct / r.total * 100) : 0;
+                        const d = new Date(r.time);
+                        const timeStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                        return `<tr><td>${timeStr}</td><td>${TYPE_NAMES[r.type] || r.type}</td><td>${r.title}</td><td>${r.correct} / ${r.total}</td><td>${rate}%</td></tr>`;
+                    }).join('')}</tbody>
+                </table>`
+                : `<div class="stats-empty">还没有练习记录。去「练习」页做一套题吧。</div>`;
+
+            const byType = { word: { count: 0, correct: 0, total: 0 }, choice: { count: 0, correct: 0, total: 0 }, blank: { count: 0, correct: 0, total: 0 } };
+            records.forEach(r => {
+                if (byType[r.type]) {
+                    byType[r.type].count++;
+                    byType[r.type].correct += r.correct;
+                    byType[r.type].total += r.total;
+                }
+            });
+            const typeRows = Object.entries(byType).map(([type, s]) => {
+                const rate = s.total ? Math.round(s.correct / s.total * 100) : 0;
+                return `<tr><td>${TYPE_NAMES[type]}</td><td>${s.count}</td><td>${s.correct} / ${s.total}</td><td>${s.count ? rate + '%' : '-'}</td></tr>`;
+            }).join('');
+            document.getElementById('statsByType').innerHTML = records.length
+                ? `<table class="stats-table">
+                    <thead><tr><th>题型</th><th>练习次数</th><th>正确 / 总题</th><th>正确率</th></tr></thead>
+                    <tbody>${typeRows}</tbody>
+                </table>`
+                : `<div class="stats-empty">暂无数据。</div>`;
+        }
+
+        /* ===== 文档页：复制 AI 提示词 ===== */
+        const copyPromptBtn = document.getElementById('copyPromptBtn');
+        const aiPromptText = document.getElementById('aiPromptText');
+        if (copyPromptBtn && aiPromptText) {
+            copyPromptBtn.addEventListener('click', async () => {
+                const text = aiPromptText.textContent;
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        ta.style.position = 'fixed';
+                        ta.style.opacity = '0';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                    copyPromptBtn.textContent = '已复制';
+                    copyPromptBtn.classList.add('copied');
+                    setTimeout(() => {
+                        copyPromptBtn.textContent = '复制提示词';
+                        copyPromptBtn.classList.remove('copied');
+                    }, 1800);
+                } catch (err) {
+                    copyPromptBtn.textContent = '复制失败，请手动选中';
+                    setTimeout(() => {
+                        copyPromptBtn.textContent = '复制提示词';
+                    }, 2200);
+                }
+            });
+        }
+
+        /* ===== 初始化 ===== */
+        updateWrongBadge();
+
+        const savedView = localStorage.getItem('activeView');
+        if (savedView && document.getElementById('view-' + savedView)) {
+            switchView(savedView);
+        }
+    </script>
+</body>
+</html>
