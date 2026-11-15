@@ -7,13 +7,13 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background-color: snow; }
-        .wrap { display: flex; height: 100vh; }
+        .wrap { display: flex; height: 100vh; position: relative; }
 
         /* ===== 侧边栏 ===== */
         .sidebar {
             width: 240px; flex-shrink: 0; background: #1e293b; color: #e2e8f0;
             display: flex; flex-direction: column; padding: 20px 12px;
-            transition: width 0.25s ease, padding 0.25s ease;
+            transition: width 0.25s ease, padding 0.25s ease, transform 0.28s ease;
             overflow: hidden; white-space: nowrap;
         }
         .sidebar.collapsed { width: 72px; padding: 20px 8px; }
@@ -59,6 +59,29 @@
             padding: 0 5px;
         }
         .sidebar.collapsed .badge { display: none; }
+
+        /* 移动端遮罩 */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 99;
+        }
+
+        /* 移动端悬浮菜单按钮（侧边栏收起后用来拉开） */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 12px; left: 12px;
+            z-index: 101;
+            width: 40px; height: 40px;
+            border: none; border-radius: 10px;
+            background: #1e293b; color: #fff;
+            cursor: pointer;
+            align-items: center; justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .mobile-menu-btn .icon { width: 20px; height: 20px; }
 
         /* ===== 主内容 ===== */
         .main-content { flex: 1; padding: 24px; background: #f8fafc; overflow-y: auto; }
@@ -166,6 +189,52 @@
         .picker-item .pi-meta { color: #94a3b8; font-size: 0.82rem; }
         .picker-item .pi-count { color: #64748b; font-size: 0.85rem; flex-shrink: 0; }
         .empty-tip { color: #94a3b8; text-align: center; padding: 30px 0; }
+
+        /* ===== 选题面板 ===== */
+        .select-panel {
+            background: #fff; border-radius: 18px; padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); border: 1px solid #eef2f6;
+        }
+        .select-toolbar {
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+            margin-bottom: 14px;
+        }
+        .select-count { color: #64748b; font-size: 0.88rem; margin-left: auto; }
+        .select-options {
+            display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
+            margin-bottom: 16px; padding: 12px 14px; background: #f8fafc;
+            border-radius: 12px; border: 1px solid #eef2f6;
+        }
+        .select-option {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #475569; font-size: 0.9rem; cursor: pointer;
+        }
+        .select-option input[type="number"] {
+            border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 8px;
+            font-size: 0.9rem; outline: none; background: #fff;
+        }
+        .select-list {
+            display: flex; flex-direction: column; gap: 8px;
+            max-height: 420px; overflow-y: auto; margin-bottom: 16px;
+        }
+        .select-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 14px; border: 1px solid #eef2f6; border-radius: 10px;
+            background: #fbfdff; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+        }
+        .select-item:hover { border-color: #cbd5e1; }
+        .select-item input[type="checkbox"] { margin-top: 3px; flex-shrink: 0; }
+        .select-item .si-index {
+            color: #94a3b8; font-size: 0.82rem; flex-shrink: 0; min-width: 28px;
+        }
+        .select-item .si-text {
+            color: #1e293b; font-size: 0.92rem; line-height: 1.6;
+            word-break: break-word;
+        }
+        .select-actions {
+            display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+            position: sticky; bottom: 0; background: #fff; padding-top: 12px;
+        }
 
         /* ===== 答题界面 ===== */
         .quiz-wrap {
@@ -486,6 +555,50 @@
         }
         .doc-footer a { color: #2563eb; text-decoration: none; }
         .doc-footer a:hover { text-decoration: underline; }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0; left: 0; bottom: 0;
+                z-index: 100;
+                width: 240px;
+                transform: translateX(0);
+                box-shadow: 4px 0 24px rgba(0,0,0,0.2);
+            }
+            .sidebar.collapsed {
+                width: 240px;
+                padding: 20px 12px;
+                transform: translateX(-100%);
+                box-shadow: none;
+            }
+            .sidebar.collapsed .logo-text,
+            .sidebar.collapsed .label,
+            .sidebar.collapsed .badge { display: inline-flex; }
+            .sidebar.collapsed .btns > button {
+                justify-content: flex-start;
+                padding: 0 14px;
+                gap: 12px;
+            }
+            .sidebar.collapsed .sidebar-header {
+                justify-content: space-between;
+                padding-left: 8px;
+                flex-direction: row;
+                gap: 0;
+            }
+            .sidebar:not(.collapsed) ~ .sidebar-backdrop { display: block; }
+
+            .mobile-menu-btn { display: flex; }
+            .sidebar:not(.collapsed) ~ .mobile-menu-btn { display: none; }
+
+            .main-content { padding: 16px; }
+            .main-content { padding-top: 64px; }
+            h2.page-title { font-size: 1.35rem; }
+            .hero { padding: 28px 20px; }
+            .hero h2 { font-size: 1.4rem; }
+            .select-list { max-height: 320px; }
+            .quiz-wrap { padding: 20px 16px; }
+        }
     </style>
 </head>
 <body>
@@ -568,6 +681,16 @@
             </div>
         </aside>
 
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="打开菜单">
+            <svg class="icon" viewBox="0 0 24 24">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
+
         <main class="main-content">
             <!-- ===== 首页 ===== -->
             <section class="view active" id="view-home">
@@ -632,6 +755,46 @@
                 <div class="picker" id="picker" style="display:none;">
                     <h3 id="pickerTitle">选择一套题目</h3>
                     <div class="picker-list" id="pickerList"></div>
+                </div>
+            </section>
+
+            <!-- ===== 选题面板 ===== -->
+            <section class="view" id="view-select">
+                <h2 class="page-title" id="selectTitle">选择要做的题</h2>
+                <p class="page-sub" id="selectSub"></p>
+
+                <div class="select-panel">
+                    <div class="select-toolbar">
+                        <button class="btn-ghost btn-sm" id="selectAllBtn">全选</button>
+                        <button class="btn-ghost btn-sm" id="selectNoneBtn">清空</button>
+                        <button class="btn-ghost btn-sm" id="selectInvertBtn">反选</button>
+                        <span class="select-count" id="selectCount">已选 0 题</span>
+                    </div>
+
+                    <div class="select-options">
+                        <label class="select-option">
+                            <input type="radio" name="orderMode" value="sequential" checked> 按顺序
+                        </label>
+                        <label class="select-option">
+                            <input type="radio" name="orderMode" value="random"> 随机顺序
+                        </label>
+                        <label class="select-option">
+                            数量：
+                            <input type="number" id="selectLimit" min="1" value="0">
+                            <span style="color:#94a3b8;font-size:0.85rem;">（0 = 全部已选）</span>
+                        </label>
+                        <label class="select-option">
+                            <input type="checkbox" id="selectRandomPick"> 从已选题中随机抽取指定数量
+                        </label>
+                    </div>
+
+                    <div class="select-list" id="selectList"></div>
+
+                    <div class="select-actions">
+                        <button class="btn-primary" id="startSelectedBtn">开始练习</button>
+                        <button class="btn-ghost" id="cancelSelectBtn">取消</button>
+                        <span class="import-msg" id="selectMsg"></span>
+                    </div>
                 </div>
             </section>
 
@@ -752,7 +915,7 @@
                     <ol>
                         <li><strong>准备题目</strong>：按下方 JSON 格式整理题目，保存为 <code>.json</code> 文件；或在「题库」页用编辑工作台手动创建。</li>
                         <li><strong>导入题库</strong>：进入「题库」页，点击「选择 JSON 文件」→ 选中文件 → 点「导入」。</li>
-                        <li><strong>开始练习</strong>：进入「练习」页，点击题型卡片（挖空 / 单词 / 单选）→ 选择一套题目 → 开始答题。</li>
+                        <li><strong>开始练习</strong>：进入「练习」页，点击题型卡片（挖空 / 单词 / 单选）→ 选择一套题目 → 在选题面板勾选要做的题、选顺序和数量 → 开始答题。</li>
                         <li><strong>查看错题</strong>：答错的题会自动收进「错题本」，可查看、移除，或一键转为新题库做专项练习。</li>
                         <li><strong>查看统计</strong>：「统计」页记录每次练习的题型、套题、正确数和正确率。</li>
                     </ol>
@@ -795,7 +958,7 @@
                     <p>练习时显示中文，用户填写英文，检查对错（忽略大小写和首尾空格）。每题两个字段：</p>
                     <ul>
                         <li><code>word</code>：中文释义，作为题干展示</li>
-                        <li><code>ranslation</code>：英文单词或短语，作为标准答案</li>
+                        <li><code>translation</code>：英文单词或短语，作为标准答案</li>
                     </ul>
                     <pre>{
   "information": {
@@ -805,8 +968,8 @@
     "auther": "小明"
   },
   "quetions": {
-    "1": { "word": "苹果", "ranslation": "apple" },
-    "2": { "word": "香蕉", "ranslation": "banana" }
+    "1": { "word": "苹果", "translation": "apple" },
+    "2": { "word": "香蕉", "translation": "banana" }
   }
 }</pre>
 
@@ -868,7 +1031,18 @@
                 </div>
 
                 <div class="doc-block">
-                    <h3>五、导出与分享</h3>
+                    <h3>五、选题面板</h3>
+                    <ul>
+                        <li>点击套题后，先进入选题面板，不会直接开始答题。</li>
+                        <li>可勾选要做哪些题，支持「全选」「清空」「反选」。</li>
+                        <li>顺序模式：按原题序做；随机模式：打乱题序。</li>
+                        <li>数量：填 0 表示做全部已选题；填 N 表示只做 N 道。</li>
+                        <li>勾选「从已选题中随机抽取指定数量」时，会从已选题里随机抽 N 道。</li>
+                    </ul>
+                </div>
+
+                <div class="doc-block">
+                    <h3>六、导出与分享</h3>
                     <ul>
                         <li>题库页每套题有「导出 JSON」按钮，点击下载该套题的 <code>.json</code> 文件。</li>
                         <li>导出格式与导入格式完全一致，可以直接发给别人，对方在「题库」页导入即可。</li>
@@ -877,7 +1051,7 @@
                 </div>
 
                 <div class="doc-block">
-                    <h3>六、编辑工作台</h3>
+                    <h3>七、编辑工作台</h3>
                     <ul>
                         <li>在「题库」页点「＋ 新建题目套」进入工作台。</li>
                         <li>填写标题（必填）、题型、标签（逗号分隔）、作者。</li>
@@ -889,7 +1063,7 @@
                 </div>
 
                 <div class="doc-block">
-                    <h3>七、答题流程与判分</h3>
+                    <h3>八、答题流程与判分</h3>
                     <ul>
                         <li>答题界面顶部有进度条、「已答 / 总数」、「正确数」；底部有题目导航点，可点击跳转任意题。</li>
                         <li><strong>挖空题</strong>：用户输入答案 → 点「检查」→ 正确变绿、错误变红并显示正确答案。答错时保留用户的输入，方便对照。</li>
@@ -901,7 +1075,7 @@
                 </div>
 
                 <div class="doc-block">
-                    <h3>八、错题本</h3>
+                    <h3>九、错题本</h3>
                     <ul>
                         <li>答题时答错的题（挖空 / 单词 / 单选）会自动收进错题本。</li>
                         <li><strong>去重规则</strong>：按题目内容生成指纹，同一道题反复错只累加「错误次数」，不会重复收录。</li>
@@ -913,7 +1087,7 @@
                 </div>
 
                 <div class="doc-block">
-                    <h3>九、统计</h3>
+                    <h3>十、统计</h3>
                     <ul>
                         <li>每次完成一套练习，会记录一条：时间、题型、套题名、正确数、总题数。</li>
                         <li>统计页顶部展示：练习次数、累计题数、平均正确率、当前错题数。</li>
@@ -923,7 +1097,7 @@
                 </div>
 
                 <div class="doc-block">
-                    <h3>十、数据存储与隐私</h3>
+                    <h3>十一、数据存储与隐私</h3>
                     <ul>
                         <li>所有数据（题库、练习记录、错题本）都保存在浏览器 <code>localStorage</code>，<strong>不上传任何服务器</strong>。</li>
                         <li>换设备、换浏览器、清除浏览器数据后，数据不会自动同步或恢复。</li>
@@ -933,7 +1107,7 @@
                 </div>
 
                 <div class="doc-block">
-                    <h3>十一、常见问题</h3>
+                    <h3>十二、常见问题</h3>
                     <ul>
                         <li><strong>导入报「JSON 解析失败」</strong>：检查文件是否是合法 JSON（引号、逗号、括号是否配对），可用在线 JSON 校验工具检查。</li>
                         <li><strong>导入报「缺少字段」</strong>：确认有 <code>information</code>、<code>information.type</code>、<code>quetions</code> 三个字段。</li>
@@ -942,11 +1116,12 @@
                         <li><strong>单词检查总是错</strong>：单词比较忽略大小写，但拼写必须一致，注意空格和连字符。</li>
                         <li><strong>单选题总判错</strong>：<code>answer</code> 是<strong>从 0 开始的索引</strong>，不是选项文字。A 填 <code>"0"</code>，B 填 <code>"1"</code>。</li>
                         <li><strong>刷新后数据没了</strong>：可能清除了浏览器数据，或用无痕模式打开。localStorage 只存在于当前浏览器。</li>
+                        <li><strong>移动端侧边栏挡住内容</strong>：侧边栏在移动端是浮层，收起后完全滑出屏幕不占宽；点遮罩或左上角悬浮菜单按钮可重新打开。</li>
                     </ul>
                 </div>
 
                 <div class="doc-block">
-                    <h3>十二、用 AI 生成题目 JSON</h3>
+                    <h3>十三、用 AI 生成题目 JSON</h3>
                     <p>如果不想手动写 JSON，可以把下面这段提示词复制给 AI（如 ChatGPT、Claude、DeepSeek 等），在留空处填上自己的知识点和要求，让 AI 按 StudyMate 的格式输出一套题目。提示词已约束 AI 只能基于用户提供的材料出题，不得凭空编造。</p>
                     <p><strong>使用方法：</strong></p>
                     <ol>
@@ -989,8 +1164,7 @@
 
 【三种题型的题目字段】
 1. type = "word"（单词卡片）：
-   { "word": "中文释义", "ranslation": "英文单词或短语" }
-   注意字段名是 ranslation（项目约定拼写），不要改成 translation。
+   { "word": "中文释义", "translation": "英文单词或短语" }
 
 2. type = "choice"（单选题）：
    {
@@ -1035,7 +1209,7 @@
 
                 <div class="doc-footer">
                     本文档内容由 AI 编写，可能存在疏漏或与最新版本不一致之处。<br>
-                    若有疑问，请联系作者"
+                    若有疑问，请联系作者：<a href="https://github.com/GoodView-12/tools" target="_blank" rel="noopener">github.com/GoodView-12/tools</a>
                 </div>
             </section>
 
@@ -1078,14 +1252,32 @@
         }
         Greeting();
 
-        /* ===== 侧边栏收起 ===== */
+        /* ===== 侧边栏收起 / 移动端打开 ===== */
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('toggleBtn');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+
         if (localStorage.getItem('sidebarCollapsed') === 'true') sidebar.classList.add('collapsed');
+
         toggleBtn.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
         });
+
+        if (sidebarBackdrop) {
+            sidebarBackdrop.addEventListener('click', () => {
+                sidebar.classList.add('collapsed');
+                localStorage.setItem('sidebarCollapsed', 'true');
+            });
+        }
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => {
+                sidebar.classList.remove('collapsed');
+                localStorage.setItem('sidebarCollapsed', 'false');
+            });
+        }
 
         /* ===== 视图切换 ===== */
         const navButtons = document.querySelectorAll('.btns > button');
@@ -1100,6 +1292,10 @@
             if (viewName === 'bank') renderBank();
             if (viewName === 'stats') renderStats();
             if (viewName === 'wrong') renderWrongBook();
+            if (window.innerWidth <= 768 && !sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                localStorage.setItem('sidebarCollapsed', 'true');
+            }
         }
 
         navButtons.forEach(btn => {
@@ -1176,13 +1372,13 @@
         function saveWrong(list) { localStorage.setItem(WRONG_KEY, JSON.stringify(list)); }
 
         function questionFingerprint(type, q) {
-            if (type === 'word') return `word::${q.word || ''}::${q.ranslation || ''}`;
+            if (type === 'word') return `word::${q.word || ''}::${q.translation || ''}`;
             if (type === 'choice') return `choice::${q.quetion || ''}::${(q.Option || []).join('|')}`;
             return `blank::${q.quetion || ''}::${q.answer || ''}`;
         }
 
         function answerOf(type, q) {
-            if (type === 'word') return q.ranslation || '';
+            if (type === 'word') return q.translation || '';
             if (type === 'choice') {
                 const idx = Number(q.answer);
                 const opt = (q.Option || [])[idx];
@@ -1244,7 +1440,7 @@
             setTimeout(() => { bankMsg.textContent = ''; }, 2500);
         }
 
-        /* ===== 文件导入（题库页） ===== */
+        /* ===== 文件导入 ===== */
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
         const importBtn = document.getElementById('importBtn');
@@ -1328,7 +1524,7 @@
             pickerList.querySelectorAll('.picker-item').forEach(el => {
                 el.addEventListener('click', () => {
                     const set = getSetsByType(currentPickType).find(s => s.id === el.dataset.id);
-                    if (set) startQuiz(type, set);
+                    if (set) openSelectPanel(type, set);
                 });
             });
             picker.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1337,6 +1533,137 @@
         document.querySelectorAll('.practice-card').forEach(card => {
             card.addEventListener('click', () => openPicker(card.dataset.type));
         });
+
+        /* =========================================================
+           选题面板
+           ========================================================= */
+        let selectState = null;
+
+        function questionBriefText(type, q) {
+            if (type === 'word') return q.word || '（空）';
+            if (type === 'choice') return q.quetion || '（空）';
+            return q.quetion || '（空）';
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        }
+        function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+
+        function openSelectPanel(type, set) {
+            const list = Object.values(set.quetions || {});
+            if (!list.length) { alert('这套题没有题目内容。'); return; }
+
+            selectState = {
+                type,
+                set,
+                selected: new Set(list.map((_, i) => i))
+            };
+
+            document.getElementById('selectTitle').textContent = '选择要做的题 · ' + TYPE_NAMES[type];
+            document.getElementById('selectSub').textContent =
+                (set.information.title || '未命名') + ' · 共 ' + list.length + ' 题';
+            document.getElementById('selectLimit').value = 0;
+            document.getElementById('selectRandomPick').checked = false;
+            document.querySelector('input[name="orderMode"][value="sequential"]').checked = true;
+            document.getElementById('selectMsg').textContent = '';
+
+            renderSelectList();
+            switchView('select');
+        }
+
+        function renderSelectList() {
+            const list = Object.values(selectState.set.quetions || {});
+            const container = document.getElementById('selectList');
+            container.innerHTML = list.map((q, i) => {
+                const checked = selectState.selected.has(i) ? 'checked' : '';
+                const brief = questionBriefText(selectState.type, q);
+                return `<label class="select-item">
+                    <input type="checkbox" data-idx="${i}" ${checked}>
+                    <span class="si-index">${i + 1}.</span>
+                    <span class="si-text">${escapeHtml(brief)}</span>
+                </label>`;
+            }).join('');
+
+            container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const idx = Number(cb.dataset.idx);
+                    if (cb.checked) selectState.selected.add(idx);
+                    else selectState.selected.delete(idx);
+                    updateSelectCount();
+                });
+            });
+
+            updateSelectCount();
+        }
+
+        function updateSelectCount() {
+            document.getElementById('selectCount').textContent = `已选 ${selectState.selected.size} 题`;
+        }
+
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            const list = Object.values(selectState.set.quetions || {});
+            selectState.selected = new Set(list.map((_, i) => i));
+            renderSelectList();
+        });
+
+        document.getElementById('selectNoneBtn').addEventListener('click', () => {
+            selectState.selected = new Set();
+            renderSelectList();
+        });
+
+        document.getElementById('selectInvertBtn').addEventListener('click', () => {
+            const list = Object.values(selectState.set.quetions || {});
+            const next = new Set();
+            list.forEach((_, i) => { if (!selectState.selected.has(i)) next.add(i); });
+            selectState.selected = next;
+            renderSelectList();
+        });
+
+        document.getElementById('startSelectedBtn').addEventListener('click', () => {
+            const msg = document.getElementById('selectMsg');
+            if (!selectState.selected.size) {
+                msg.textContent = '请至少选择一道题';
+                msg.className = 'import-msg err';
+                return;
+            }
+
+            const orderMode = document.querySelector('input[name="orderMode"]:checked').value;
+            const limitRaw = parseInt(document.getElementById('selectLimit').value, 10);
+            const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 0;
+            const randomPick = document.getElementById('selectRandomPick').checked;
+
+            let indices = Array.from(selectState.selected);
+
+            if (orderMode === 'random') {
+                indices = shuffleArray(indices.slice());
+            }
+            if (limit > 0) {
+                if (randomPick && orderMode !== 'random') {
+                    indices = shuffleArray(indices.slice()).slice(0, limit);
+                } else {
+                    indices = indices.slice(0, limit);
+                }
+            }
+
+            const allList = Object.values(selectState.set.quetions || {});
+            const quizList = indices.map(i => allList[i]);
+
+            startQuizWithList(selectState.type, selectState.set, quizList);
+        });
+
+        document.getElementById('cancelSelectBtn').addEventListener('click', () => {
+            switchView('practice');
+            selectState = null;
+        });
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
 
         /* =========================================================
            答题视图
@@ -1363,14 +1690,13 @@
 
         let currentQuiz = null;
 
-        function startQuiz(type, set) {
-            const list = Object.values(set.quetions || {});
+        function startQuizWithList(type, set, list) {
             if (!list.length) {
-                alert('这套题没有题目内容。');
+                alert('没有可练习的题目。');
                 return;
             }
             quizTitle.textContent = TYPE_NAMES[type] + ' · ' + (set.information.title || '未命名');
-            quizSub.textContent = (set.information.auther || '匿名') + ' · 共 ' + list.length + ' 题';
+            quizSub.textContent = (set.information.auther || '匿名') + ' · 本次 ' + list.length + ' 题';
             currentQuiz = {
                 type,
                 setTitle: set.information.title || '未命名',
@@ -1490,7 +1816,7 @@
             const idx = currentQuiz.index + 1;
             const done = currentQuiz.results[currentQuiz.index] !== null;
             const zh = q.word || '';
-            const en = q.ranslation || '';
+            const en = q.translation || '';
 
             quizWrap.innerHTML = `
                 ${renderQuizTop()}
@@ -1923,7 +2249,7 @@
         let editorQuestions = [];
 
         function blankQuestion(type) {
-            if (type === 'word') return { word: '', ranslation: '' };
+            if (type === 'word') return { word: '', translation: '' };
             if (type === 'choice') return { quetion: '', Option: ['', '', '', ''], answer: '0' };
             return { quetion: '', answer: '' };
         }
@@ -1955,7 +2281,7 @@
         edType.addEventListener('change', () => {
             const newType = edType.value;
             editorQuestions = editorQuestions.map(q => {
-                if (newType === 'word') return { word: q.word || '', ranslation: q.ranslation || '' };
+                if (newType === 'word') return { word: q.word || '', translation: q.translation || '' };
                 if (newType === 'choice') return {
                     quetion: q.quetion || '',
                     Option: (q.Option && q.Option.length === 4) ? q.Option.slice(0, 4) : ['', '', '', ''],
@@ -1967,11 +2293,6 @@
             renderQuestionEditors();
         });
 
-        function escapeHtml(s) {
-            return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-        }
-        function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
-
         function renderQuestionEditors() {
             const type = edType.value;
             questionEditors.innerHTML = editorQuestions.map((q, i) => {
@@ -1979,7 +2300,7 @@
                 if (type === 'word') {
                     fieldsHtml = `
                         <div class="form-field"><label>中文释义</label><input type="text" data-q="${i}" data-field="word" value="${escapeAttr(q.word || '')}" placeholder="例如：苹果"></div>
-                        <div class="form-field"><label>英文 / 短语</label><input type="text" data-q="${i}" data-field="ranslation" value="${escapeAttr(q.ranslation || '')}" placeholder="例如：apple"></div>`;
+                        <div class="form-field"><label>英文 / 短语</label><input type="text" data-q="${i}" data-field="translation" value="${escapeAttr(q.translation || '')}" placeholder="例如：apple"></div>`;
                 } else if (type === 'choice') {
                     const opts = q.Option && q.Option.length === 4 ? q.Option : ['', '', '', ''];
                     const optRows = opts.map((o, oi) => `
@@ -2048,7 +2369,7 @@
             const type = edType.value;
             for (let i = 0; i < editorQuestions.length; i++) {
                 const q = editorQuestions[i];
-                if (type === 'word' && (!q.word || !q.ranslation)) { editorMsg.textContent = `第 ${i + 1} 题：中文和英文都要填`; editorMsg.className = 'import-msg err'; return; }
+                if (type === 'word' && (!q.word || !q.translation)) { editorMsg.textContent = `第 ${i + 1} 题：中文和英文都要填`; editorMsg.className = 'import-msg err'; return; }
                 if (type === 'choice') {
                     if (!q.quetion) { editorMsg.textContent = `第 ${i + 1} 题：题干不能为空`; editorMsg.className = 'import-msg err'; return; }
                     if (!q.Option || q.Option.some(o => !o)) { editorMsg.textContent = `第 ${i + 1} 题：四个选项都要填`; editorMsg.className = 'import-msg err'; return; }
@@ -2058,7 +2379,7 @@
 
             const quetions = {};
             editorQuestions.forEach((q, i) => {
-                if (type === 'word') quetions[i + 1] = { word: q.word, ranslation: q.ranslation };
+                if (type === 'word') quetions[i + 1] = { word: q.word, translation: q.translation };
                 else if (type === 'choice') quetions[i + 1] = { quetion: q.quetion, Option: q.Option.slice(0, 4), answer: String(q.answer) };
                 else quetions[i + 1] = { quetion: q.quetion, answer: q.answer };
             });
